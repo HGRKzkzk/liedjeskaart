@@ -73,9 +73,6 @@
 		{/if}
 
 		<p>{selectedPlace.description}</p>
-
-		<!-- DEBUG: zie alle data -->
-		<!-- <pre>{JSON.stringify(selectedPlace, null, 2)}</pre> -->
 	</div>
 {/if}
 
