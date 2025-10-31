@@ -34,36 +34,6 @@
       }),
     });
 
-    // MARKERS: bewaar hele object als `marker`
-    const features = markers.map((m) => {
-      const f = new Feature({
-        geometry: new Point(fromLonLat([m.lon, m.lat])),
-        marker: m, // HELE marker bewaren!
-      });
-
-      f.setStyle(
-        new Style({
-          image: new Icon({
-            src: '/pin.png',
-            scale: 0.07,
-            anchor: [0.5, 1],
-          }),
-          text: new Text({
-            text: m.place, // Gebruik `place` als label
-            offsetY: -15,
-            font: '600 13px "Inter", sans-serif',
-            fill: new Fill({ color: '#333' }),
-            stroke: new Stroke({ color: '#fff', width: 3 }),
-          }),
-        })
-      );
-      return f;
-    });
-
-    const markerLayer = new VectorLayer({
-      source: new VectorSource({ features }),
-    });
-
     const nlCenter = fromLonLat([5.3, 52.2]);
     view = new View({
       projection,
@@ -77,7 +47,7 @@
 
     map = new Map({
       target: mapElement,
-      layers: [baseLayer, markerLayer],
+      layers: [baseLayer],
       view,
       controls: defaultControls({ attribution: false, zoom: false }),
     });
@@ -93,48 +63,94 @@
       view.setZoom(7.4);
     };
     setTimeout(tryFit, 300);
+  });
 
-    // KLIK: dispatch hele marker
+  // Reageer op veranderingen in markers
+  $: if (map && markers && markers.length > 0) {
+    console.log('🗺️ Nieuwe markers ontvangen:', markers);
+
+    const features = markers
+      .map((m) => {
+        if (isNaN(m.lon) || isNaN(m.lat)) {
+          console.warn('⚠️ Marker met ongeldige coördinaten overgeslagen:', m);
+          return null;
+        }
+
+        // ✅ Fallbacks voor kolomnamen
+        const normalizedMarker = {
+          place: m.place || m.plaats || '(onbekend)',
+          lon: m.lon,
+          lat: m.lat,
+          song: m.song || m.lied || '',
+          artist: m.artist || m.artiest || '',
+          description: m.description || m.omschrijving || '',
+          youtubeId: m.youtubeId || m.youtube || '',
+        };
+
+        const feature = new Feature({
+          geometry: new Point(fromLonLat([normalizedMarker.lon, normalizedMarker.lat])),
+          marker: { ...normalizedMarker }, // diepte kopie voorkomt lege modals
+        });
+
+        feature.setStyle(
+          new Style({
+            image: new Icon({
+              src: '/pin.png',
+              scale: 0.07,
+              anchor: [0.5, 1],
+            }),
+            text: new Text({
+              text: normalizedMarker.place,
+              offsetY: -15,
+              font: '600 13px "Inter", sans-serif',
+              fill: new Fill({ color: '#333' }),
+              stroke: new Stroke({ color: '#fff', width: 3 }),
+            }),
+          })
+        );
+
+        return feature;
+      })
+      .filter(Boolean);
+
+    const source = new VectorSource({ features });
+
+    // Oude markerlaag vervangen
+    const existingMarkerLayer = map
+      .getLayers()
+      .getArray()
+      .find((l) => l.get('name') === 'markers');
+    if (existingMarkerLayer) map.removeLayer(existingMarkerLayer);
+
+    const markerLayer = new VectorLayer({
+      source,
+    });
+    markerLayer.set('name', 'markers');
+    map.addLayer(markerLayer);
+
+    // Klik → dispatch volledige marker
     map.on('click', (evt) => {
       const feature = map.forEachFeatureAtPixel(evt.pixel, (f) => f);
       if (!feature) return;
 
       const marker = feature.get('marker');
+      console.log('🧭 Feature geklikt:', feature);
+      console.log('📦 marker data uit feature:', marker);
+
       if (!marker) return;
 
       const coords = feature.getGeometry().getCoordinates();
-
       view.animate(
         { center: coords, zoom: 11, duration: 800 },
-        () => dispatch('select', marker) // HELE OBJECT
+        () => {
+          console.log('📤 Dispatching select event met marker:', marker);
+          dispatch('select', marker);
+        }
       );
     });
+  }
 
-    // Cursor
-    map.on('pointermove', (evt) => {
-      map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel)
-        ? 'pointer'
-        : '';
-    });
-
-    // Beperk tot NL
-    map.on('moveend', () => {
-      const center = view.getCenter();
-      if (!center) return;
-      const extent = view.calculateExtent(map.getSize());
-      const exceeds = !(
-        extent[0] >= nlExtent[0] &&
-        extent[2] <= nlExtent[2] &&
-        extent[1] >= nlExtent[1] &&
-        extent[3] <= nlExtent[3]
-      );
-      if (exceeds) {
-        view.fit(nlExtent, { size: map.getSize(), duration: 300 });
-      }
-    });
-  });
-
-  // Reset zoom bij sluiten
+  // Reset zoom bij sluiten modal
   $: if (view && resetSignal > 0) {
     view.animate({
       center: [(nlExtent[0] + nlExtent[2]) / 2, (nlExtent[1] + nlExtent[3]) / 2],
@@ -144,46 +160,13 @@
   }
 </script>
 
+<div bind:this={mapElement} id="map"></div>
+
 <style>
   #map {
     width: 100%;
     height: 100%;
     position: fixed;
     inset: 0;
-    background-color: #f0f0f0;
-  }
-
-  :global(html, body, main, #__layout) {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-  }
-
-  .custom-attribution {
-    position: fixed;
-    right: 10px;
-    bottom: 6px;
-    background: rgba(255, 255, 255, 0.75);
-    border-radius: 6px;
-    font-size: 11px;
-    padding: 2px 6px;
-    color: #333;
-    line-height: 1.3;
-    z-index: 1000;
-  }
-
-  .custom-attribution a {
-    color: #3366cc;
-    text-decoration: none;
-  }
-
-  .custom-attribution a:hover {
-    text-decoration: underline;
   }
 </style>
-
-<div bind:this={mapElement} id="map"></div>
-
-<div class="custom-attribution">
-  © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> & MapTiler
-</div>
