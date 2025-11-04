@@ -9,19 +9,45 @@
   import Point from 'ol/geom/Point';
   import VectorLayer from 'ol/layer/Vector';
   import VectorSource from 'ol/source/Vector';
-  import { Icon, Style, Text, Fill, Stroke } from 'ol/style';
-  import { defaults as defaultControls } from 'ol/control';
+  import Cluster from 'ol/source/Cluster';
+  import {
+    Icon,
+    Style,
+    Text,
+    Fill,
+    Stroke,
+    Circle as CircleStyle,
+  } from 'ol/style';
+  import { defaults as defaultControls, Attribution, Zoom } from 'ol/control';
+  import 'ol/ol.css';
 
-  export let markers: any[] = [];
+  type Marker = {
+    lon: number;
+    lat: number;
+    place?: string;
+    song?: string;
+    artist?: string;
+    description?: string;
+    youtubeId?: string;
+  };
+
+  export let markers: Marker[] = [];
   export let resetSignal = 0;
+  export let activeMarker: Marker | null = null; // 🆕 nieuw toegevoegd
 
   let mapElement: HTMLDivElement;
-  const dispatch = createEventDispatcher();
+  let map: Map;
   let view: View;
   let nlExtent: number[];
-  let map: Map;
+  let clusterLayer: VectorLayer<Cluster>;
+  let lastZoomBeforeSelect: number | null = null;
 
-  const MAPTILER_KEY = "p2dtQSug5uMMSMPkxDKK";
+  const dispatch = createEventDispatcher();
+
+  const MAPTILER_KEY = 'p2dtQSug5uMMSMPkxDKK';
+  const LABEL_ZOOM_THRESHOLD = 7;
+  const DEFAULT_ZOOM = 7.4;
+  const SELECT_ZOOM = 12;
 
   onMount(() => {
     const nlExtentWGS84 = [3.0, 50.7, 7.3, 53.7];
@@ -31,6 +57,10 @@
     const baseLayer = new TileLayer({
       source: new XYZ({
         url: `https://api.maptiler.com/maps/aquarelle/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
+        attributions: [
+          '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a>',
+          '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+        ],
       }),
     });
 
@@ -38,7 +68,7 @@
     view = new View({
       projection,
       center: nlCenter,
-      zoom: 7.4,
+      zoom: DEFAULT_ZOOM,
       minZoom: 6,
       maxZoom: 13,
       extent: nlExtent,
@@ -49,114 +79,137 @@
       target: mapElement,
       layers: [baseLayer],
       view,
-      controls: defaultControls({ attribution: false, zoom: false }),
+      controls: defaultControls({ zoom: false, attribution: false }).extend([
+        new Zoom({ className: 'ol-zoom custom-zoom' }),
+        new Attribution({
+          collapsible: true,
+          collapsed: true,
+          className: 'ol-attribution custom-attribution',
+        }),
+      ]),
     });
 
-    // Fit Nederland bij laden
-    const tryFit = () => {
+    const fitToNL = () => {
       const size = map.getSize();
       if (!size || size[0] === 0) {
-        requestAnimationFrame(tryFit);
+        requestAnimationFrame(fitToNL);
         return;
       }
       view.fit(nlExtent, { size, padding: [40, 40, 40, 40], duration: 0 });
-      view.setZoom(7.4);
+      view.setZoom(DEFAULT_ZOOM);
     };
-    setTimeout(tryFit, 300);
+    map.once('postrender', fitToNL);
+
+    map.on('click', handleMapClick);
+    view.on('change:resolution', () => updateClusterLabels());
   });
 
-  // Reageer op veranderingen in markers
-  $: if (map && markers && markers.length > 0) {
-    console.log('🗺️ Nieuwe markers ontvangen:', markers);
+  function renderClusters() {
+    if (!map || !markers || markers.length === 0) return;
+    const validMarkers = markers.filter((m) => !isNaN(m.lon) && !isNaN(m.lat));
+    if (validMarkers.length === 0) return;
 
-    const features = markers
-      .map((m) => {
-        if (isNaN(m.lon) || isNaN(m.lat)) {
-          console.warn('⚠️ Marker met ongeldige coördinaten overgeslagen:', m);
-          return null;
-        }
+    const features = validMarkers.map(
+      (m) =>
+        new Feature({
+          geometry: new Point(fromLonLat([m.lon, m.lat])),
+          marker: m,
+        })
+    );
 
-        // ✅ Fallbacks voor kolomnamen
-        const normalizedMarker = {
-          place: m.place || m.plaats || '(onbekend)',
-          lon: m.lon,
-          lat: m.lat,
-          song: m.song || m.lied || '',
-          artist: m.artist || m.artiest || '',
-          description: m.description || m.omschrijving || '',
-          youtubeId: m.youtubeId || m.youtube || '',
-        };
+    const clusterSource = new Cluster({
+      distance: 30,
+      source: new VectorSource({ features }),
+    });
 
-        const feature = new Feature({
-          geometry: new Point(fromLonLat([normalizedMarker.lon, normalizedMarker.lat])),
-          marker: { ...normalizedMarker }, // diepte kopie voorkomt lege modals
+    const clusterStyleFunction = (feature) => {
+      const clustered = feature.get('features');
+      const size = clustered.length;
+      const zoom = view?.getZoom?.() ?? 0;
+
+      if (size > 1) {
+        return new Style({
+          image: new CircleStyle({
+            radius: 14 + Math.min(size, 30) / 3,
+            fill: new Fill({ color: 'rgba(92, 111, 130, 0.85)' }),
+            stroke: new Stroke({ color: '#fff', width: 2 }),
+          }),
+          text: new Text({
+            text: size.toString(),
+            fill: new Fill({ color: '#fff' }),
+            font: '600 12px "Inter", sans-serif',
+          }),
         });
+      } else {
+        const marker = clustered[0].get('marker') as Marker;
+        const textStyle =
+          zoom >= LABEL_ZOOM_THRESHOLD
+            ? new Text({
+                text: marker.place ?? '(onbekend)',
+                offsetY: 8,
+                textAlign: 'center',
+                textBaseline: 'top',
+                font: '600 13px "Inter", sans-serif',
+                fill: new Fill({ color: '#333' }),
+                stroke: new Stroke({ color: '#fff', width: 3 }),
+              })
+            : undefined;
 
-        feature.setStyle(
-          new Style({
-            image: new Icon({
-              src: '/pin.png',
-              scale: 0.07,
-              anchor: [0.5, 1],
-            }),
-            text: new Text({
-              text: normalizedMarker.place,
-              offsetY: -15,
-              font: '600 13px "Inter", sans-serif',
-              fill: new Fill({ color: '#333' }),
-              stroke: new Stroke({ color: '#fff', width: 3 }),
-            }),
-          })
-        );
+        return new Style({
+          image: new Icon({
+            src: '/pin.png',
+            scale: 0.07,
+            anchor: [0.5, 1],
+          }),
+          text: textStyle,
+          hitDetection: new CircleStyle({
+            radius: 12,
+            fill: new Fill({ color: 'rgba(0,0,0,0.001)' }),
+          }),
+        });
+      }
+    };
 
-        return feature;
-      })
-      .filter(Boolean);
-
-    const source = new VectorSource({ features });
-
-    // Oude markerlaag vervangen
-    const existingMarkerLayer = map
-      .getLayers()
-      .getArray()
-      .find((l) => l.get('name') === 'markers');
-    if (existingMarkerLayer) map.removeLayer(existingMarkerLayer);
-
-    const markerLayer = new VectorLayer({
-      source,
-    });
-    markerLayer.set('name', 'markers');
-    map.addLayer(markerLayer);
-
-    // Klik → dispatch volledige marker
-    map.on('click', (evt) => {
-      const feature = map.forEachFeatureAtPixel(evt.pixel, (f) => f);
-      if (!feature) return;
-
-      const marker = feature.get('marker');
-      console.log('🧭 Feature geklikt:', feature);
-      console.log('📦 marker data uit feature:', marker);
-
-      if (!marker) return;
-
-      const coords = feature.getGeometry().getCoordinates();
-      view.animate(
-        { center: coords, zoom: 11, duration: 800 },
-        () => {
-          console.log('📤 Dispatching select event met marker:', marker);
-          dispatch('select', marker);
-        }
-      );
-    });
+    if (clusterLayer) map.removeLayer(clusterLayer);
+    clusterLayer = new VectorLayer({ source: clusterSource, style: clusterStyleFunction });
+    map.addLayer(clusterLayer);
   }
 
-  // Reset zoom bij sluiten modal
+  function updateClusterLabels() {
+    if (clusterLayer) clusterLayer.changed();
+  }
+
+  function handleMapClick(evt) {
+    const feature = map.forEachFeatureAtPixel(evt.pixel, (f) => f, { hitTolerance: 10 });
+    if (!feature) return;
+    const clustered = feature.get('features');
+    if (!clustered) return;
+
+    if (clustered.length > 1) {
+      view.animate({
+        center: evt.coordinate,
+        zoom: Math.min((view.getZoom() ?? DEFAULT_ZOOM) + 1.2, view.getMaxZoom() ?? 13),
+        duration: 400,
+      });
+    } else {
+      const marker = clustered[0].get('marker') as Marker;
+      const coords = clustered[0].getGeometry().getCoordinates();
+      lastZoomBeforeSelect = view.getZoom() ?? DEFAULT_ZOOM;
+      view.animate({ center: coords, zoom: SELECT_ZOOM, duration: 600 }, () => dispatch('select', marker));
+    }
+  }
+
+  // 🔁 Reageer op prop-wijzigingen
+  $: if (map && markers) renderClusters();
   $: if (view && resetSignal > 0) {
-    view.animate({
-      center: [(nlExtent[0] + nlExtent[2]) / 2, (nlExtent[1] + nlExtent[3]) / 2],
-      zoom: 7.4,
-      duration: 1000,
-    });
+    const zoomTerug = lastZoomBeforeSelect ?? DEFAULT_ZOOM;
+    view.animate({ zoom: zoomTerug, duration: 600 });
+  }
+
+  // 🆕 Automatisch centreren bij wijziging van activeMarker
+  $: if (map && activeMarker) {
+    const coords = fromLonLat([activeMarker.lon, activeMarker.lat]);
+    view.animate({ center: coords, zoom: SELECT_ZOOM, duration: 600 });
   }
 </script>
 
@@ -168,5 +221,46 @@
     height: 100%;
     position: fixed;
     inset: 0;
+  }
+
+  .custom-attribution {
+    font-size: 11px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 6px;
+    padding: 3px 6px;
+    backdrop-filter: blur(4px);
+  }
+
+  .ol-overlaycontainer-stopevent .ol-attribution.custom-attribution {
+    position: absolute !important;
+    right: 10px !important;
+    bottom: 10px !important;
+    left: auto !important;
+    top: auto !important;
+  }
+
+  .ol-overlaycontainer-stopevent .custom-zoom {
+    position: absolute !important;
+    right: 10px !important;
+    bottom: 50px !important;
+    top: auto !important;
+    left: auto !important;
+  }
+
+  .custom-zoom button {
+    background: rgba(255, 255, 255, 0.6);
+    color: #333;
+    border: none;
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+    cursor: pointer;
+    margin: 2px 0;
+    transition: background 0.2s ease;
+  }
+
+  .custom-zoom button:hover {
+    background: rgba(255, 255, 255, 0.85);
   }
 </style>
