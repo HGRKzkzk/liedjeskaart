@@ -1,0 +1,61 @@
+:root {
+  /* 🎨 Kleuren — Retro Nederland */
+  --color-bg: #fffaf3;
+  --color-bg-muted: #fffaf3;
+  --color-border-subtle: rgba(47, 47, 47, 0.1);
+  --color-text: #2f2f2f;
+  --color-text-muted: #6e6258;
+  --color-link: #2b5d9b;
+  --color-primary: #e67e22;
+  --color-primary-soft: #f3d7b0;
+
+
+  /* ✨ Schaduw & blur */
+  --shadow-lg: 0 8px 30px rgba(47, 47, 47, 0.15); /* zachter en warmer */
+  --blur-overlay: blur(2.5px);
+
+  /* 🔘 Rondingen */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+
+  /* ⏱ Transities */
+  --transition-fast: 0.15s ease-out;
+  --transition-medium: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+
+  /* ✍️ Typografie */
+  --font-head: 'Karla', sans-serif;
+  --font-body: 'Karla', system-ui, sans-serif;
+  --letter-spacing-head: 0.01em;
+  --line-height-head: 1.35;
+}
+
+/* 📦 Basisstijl voor hele app */
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  font-size: 16px;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-head);
+  color: var(--color-text);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+a {
+  color: var(--color-link);
+  text-decoration: none;
+  transition: color var(--transition-medium);
+}
+
+a:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}

@@ -1,93 +1,141 @@
-import type { Marker } from '$lib/types';
+import type { Marker } from './types';
 
-/**
- * Haalt markerdata op uit Google Sheets via /api/sheet.
- * - Herkent en verwijdert lege eerste kolom
- * - Ondersteunt Nederlandse en Engelse kolomnamen
- * - Cachet resultaten in sessionStorage
- */
-export async function getMarkersFromApi(forceRefresh = false): Promise<Marker[]> {
-  const CACHE_KEY = 'nl_liedjes_markers_v7';
+// 🌍 Detecteer runtime (browser vs Node)
+const isNode =
+  typeof process !== 'undefined' &&
+  process.release &&
+  process.release.name === 'node';
 
-  // 1️⃣ Cache check
-  if (!forceRefresh && typeof sessionStorage !== 'undefined') {
-    const cached = sessionStorage.getItem(CACHE_KEY);
-    if (cached) {
-      try {
-        const data = JSON.parse(cached);
-        if (Array.isArray(data) && data.length > 0) {
-          console.log('📦 Loaded markers from cache');
-          return data;
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-  }
-
-  console.log('🌐 Fetching markers from /api/sheet...');
-  const res = await fetch('/api/sheet');
-  if (!res.ok) throw new Error(`Sheet API-fout: ${res.status}`);
-
-  let rows: string[][] = await res.json();
-  if (!rows || rows.length < 2) {
-    console.warn('⚠️ Geen data ontvangen van de Sheet.');
+// 📦 Hulpfunctie voor lokale markers (werkt overal)
+async function loadLocalData(): Promise<Marker[]> {
+  try {
+    const module = await import('./data/markers.json', {
+      assert: { type: 'json' }
+    });
+    return module.default;
+  } catch (err) {
+    
     return [];
   }
+}
 
-  // ✅ Controleer en verwijder lege eerste kolom als die voorkomt
-  if (rows[0].length > 0 && rows[0][0].trim() === '') {
-    console.warn('⚠️ Eerste kolom is leeg — verwijderen bij alle rijen...');
-    rows = rows.map((r) => r.slice(1)); // verwijder eerste kolom bij alle rijen
-  }
+// -------------------------------------------------------------
+// 📤 Hoofdfunctie: markers ophalen uit Sheet of lokaal
+// -------------------------------------------------------------
+export async function getMarkersFromApi(forceRefresh = false): Promise<Marker[]> {
+  // 🧠 Alleen in Node de Google API laden
+  if (isNode) {
+    const dotenv = await import('dotenv');
+    dotenv.config();
 
-  // 2️⃣ Headers normaliseren
-  const headers = rows[0].map((h) => h.trim().toLowerCase());
-  console.log('🧾 Headers gevonden:', headers);
+    // 👇 Belangrijk: import googleapis pas hier binnen!
+    const { google } = await import('googleapis');
 
-  const data = rows.slice(1);
+    const SHEET_ID = process.env.PRIVATE_SHEET_ID;
+    const CLIENT_EMAIL = process.env.PRIVATE_GOOGLE_CLIENT_EMAIL;
+    const PRIVATE_KEY = process.env.PRIVATE_GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
-  // 3️⃣ Rijen omzetten naar Marker-objecten
-  const markers: Marker[] = data.map((r, i) => {
-    console.log(`📄 Rij ${i + 2} ruwe data:`, r);
+    if (!SHEET_ID || !CLIENT_EMAIL || !PRIVATE_KEY) {
+      throw new Error('❌ Google service credentials ontbreken in .env');
+    }
 
-    // Maak een mapping van kolomnaam → waarde
-    const row: Record<string, string> = {};
-    headers.forEach((h, idx) => {
-      row[h] = (r[idx] || '').trim();
+    
+
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: CLIENT_EMAIL,
+        private_key: PRIVATE_KEY
+      },
+      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']
     });
 
-    // 🎬 YouTube ID extraheren
-    let youtubeId = row['youtube'] || '';
-    youtubeId = youtubeId.includes('v=')
-      ? new URL(youtubeId).searchParams.get('v') || ''
-      : youtubeId.replace(/.*youtu\.be\//, '');
+    const sheets = google.sheets({ version: 'v4', auth });
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: 'Data!A:Z'
+    });
 
-    const marker: Marker = {
-      place: row['plaats'] || row['place'] || '',
-      lon: parseFloat(row['lon']),
-      lat: parseFloat(row['lat']),
-      song: row['lied'] || row['song'] || '',
-      artist: row['artiest'] || row['artist'] || '',
-      description: row['omschrijving'] || row['description'] || '',
-      youtubeId
-    };
+    const rows = res.data.values;
+    if (!rows || rows.length < 2) {
+      
+      return [];
+    }
 
-    console.log(`✅ Rij ${i + 2} geconverteerd:`, marker);
-    return marker;
-  });
+    const headers = rows[0].map((h) => h.trim().toLowerCase());
+    const data = rows.slice(1);
 
-  // 4️⃣ Filter geldige markers
-  const validMarkers = markers.filter(
-    (m) => m.place && !isNaN(m.lon) && !isNaN(m.lat)
-  );
+    const markers: Marker[] = data.map((r) => {
+      const row: Record<string, string> = {};
+      headers.forEach((h, idx) => (row[h] = (r[idx] || '').trim()));
 
-  console.log(`✅ ${validMarkers.length} geldige markers geladen`);
+      let youtubeId = row['youtube'] || '';
+      youtubeId = youtubeId.includes('v=')
+        ? new URL(youtubeId).searchParams.get('v') || ''
+        : youtubeId.replace(/.*youtu\.be\//, '');
 
-  // 5️⃣ Cache geldig resultaat
-  if (typeof sessionStorage !== 'undefined') {
-    sessionStorage.setItem(CACHE_KEY, JSON.stringify(validMarkers));
+      return {
+        place: row['plaats'] || row['place'] || '',
+        lon: parseFloat(row['lon']),
+        lat: parseFloat(row['lat']),
+        song: row['lied'] || row['song'] || '',
+        artist: row['artiest'] || row['artist'] || '',
+        description: row['omschrijving'] || row['description'] || '',
+        youtubeId,
+        wikiUrl: row['wikiplaats'] || row['wiki'] || '',
+        artistUrl: row['artiestlink'] || row['artistlink'] || '',
+        componist: row['liedcomponist'] || '',
+        componistUrl: row['componistinfo'] || '',
+        tekstschrijver: row['liedtekstschrijver'] || '',
+        tekstschrijverUrl: row['tekstschrijverinfo'] || ''
+      };
+    });
+
+    const valid = markers.filter((m) => m.place && !isNaN(m.lon) && !isNaN(m.lat));
+    
+    return valid;
   }
 
-  return validMarkers;
+  // 🌐 In browser → API endpoint gebruiken
+  try {
+    
+    const res = await fetch('/api/sheet');
+    if (!res.ok) throw new Error(`Sheet API-fout: ${res.status}`);
+
+    const rows: string[][] = await res.json();
+    if (!rows || rows.length < 2) return [];
+
+    const headers = rows[0].map((h) => h.trim().toLowerCase());
+    const data = rows.slice(1);
+
+    const markers: Marker[] = data.map((r) => {
+      const row: Record<string, string> = {};
+      headers.forEach((h, idx) => (row[h] = (r[idx] || '').trim()));
+
+      let youtubeId = row['youtube'] || '';
+      youtubeId = youtubeId.includes('v=')
+        ? new URL(youtubeId).searchParams.get('v') || ''
+        : youtubeId.replace(/.*youtu\.be\//, '');
+
+      return {
+        place: row['plaats'] || row['place'] || '',
+        lon: parseFloat(row['lon']),
+        lat: parseFloat(row['lat']),
+        song: row['lied'] || row['song'] || '',
+        artist: row['artiest'] || row['artist'] || '',
+        description: row['omschrijving'] || row['description'] || '',
+        youtubeId,
+        wikiUrl: row['wikiplaats'] || row['wiki'] || '',
+        artistUrl: row['artiestlink'] || row['artistlink'] || '',
+        componist: row['liedcomponist'] || '',
+        componistUrl: row['componistinfo'] || '',
+        tekstschrijver: row['liedtekstschrijver'] || '',
+        tekstschrijverUrl: row['tekstschrijverinfo'] || ''
+      };
+    });
+
+    return markers;
+  } catch (err) {
+    
+    return await loadLocalData();
+  }
 }

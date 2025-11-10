@@ -1,3 +1,4 @@
 @import 'tailwindcss';
+@import './lib/PageContent.css';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';

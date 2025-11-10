@@ -1,12 +1,16 @@
 <script lang="ts">
 	import '../app.css';
-	import favicon from '$lib/assets/favicon.svg';
-
+	
 	let { children } = $props();
+
+
+	  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker
+      .register('/service-worker.js')
+      .then(() => console.log('✅ Service worker actief'))
+      .catch((err) => console.error('❌ SW-fout:', err));
+  }
 </script>
 
-<svelte:head>
-	<link rel="icon" href={favicon} />
-</svelte:head>
 
 {@render children()}

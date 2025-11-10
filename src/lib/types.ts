@@ -1,9 +1,15 @@
-export interface Marker {
-  place: string;
+export type Marker = {
   lon: number;
   lat: number;
-  song: string;
-  artist: string;
-  description: string;
+  place?: string;
+  song?: string;
+  artist?: string;
+  description?: string;
   youtubeId?: string;
-}
+  wikiUrl?: string;
+  artistUrl?: string;
+  componist?: string;
+  componistUrl?: string;
+  tekstschrijver?: string;
+  tekstschrijverUrl?: string;
+};
