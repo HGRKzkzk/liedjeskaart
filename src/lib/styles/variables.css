@@ -59,3 +59,23 @@ a:hover {
   color: var(--color-primary);
   text-decoration: underline;
 }
+
+
+/* 🌙 Donker thema */
+:root[data-theme="dark"] {
+  --color-bg: #1a1a1a;
+  --color-bg-muted: #222;
+  --color-text: #f6f6f6;
+  --color-text-muted: #bbb;
+  --color-border-subtle: #333;
+  --color-shadow: rgba(0, 0, 0, 0.7);
+
+  --color-primary: #e67e22;
+  --color-primary-soft: #4a321b;
+
+  --color-link: #ffb86c;
+  --color-link-hover: #ffd09e;
+
+  --color-bg-overlay: rgba(0, 0, 0, 0.4);
+  --blur-overlay: blur(6px);
+}

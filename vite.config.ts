@@ -4,24 +4,13 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [sveltekit()],
 
+  // voorkomt dat node-fetch gebundeld wordt (dit is essentieel)
   optimizeDeps: {
-    exclude: ['googleapis', 'node-fetch'] // 🚫 niet pre-bunden voor browser
+    exclude: ['googleapis', 'node-fetch']
   },
 
   ssr: {
-    external: ['googleapis'], // ✅ laat Node zelf deze CommonJS-module importeren
-    noExternal: []            // (zorg dat hij niet als ESM wordt gedwongen)
-  },
-
-  build: {
-    rollupOptions: {
-      external: [
-        'googleapis',
-        'node-fetch',
-        'stream',
-        'util',
-        'buffer'
-      ]
-    }
+    // hiermee voorkomt SSR dat node-fetch wil bundelen in static builds
+    noExternal: ['googleapis', 'node-fetch']
   }
 });

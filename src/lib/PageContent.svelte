@@ -1,102 +1,161 @@
 <script lang="ts">
+  import ContactModal from '$lib/components/ContactModal.svelte';
   import Map from '$lib/components/Map.svelte';
-  import { getMarkers } from '$lib/getMarkers';
-  import { onMount, tick, afterUpdate } from 'svelte';
-  import { browser } from '$app/environment';
-  import type { Marker } from '$lib/types';
-
   import Sidebar from '$lib/components/Sidebar.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import SongModal from '$lib/components/SongModal.svelte';
 
-  // ------------------------------
-  // 🔧 STATE
-  // ------------------------------
+  import { onMount, tick, afterUpdate } from 'svelte';
+  import { browser } from '$app/environment';
+  import { base } from '$app/paths';
+  import { goto } from '$app/navigation';
+
+  import type { Marker } from '$lib/types';
+  import { loadMarkers } from '$lib/loadMarkers';
+
+  // -----------------------------------------
+  // 🧱 STATE
+  // -----------------------------------------
   let markers: Marker[] = [];
+  let contactOpen = false;
   let selectedPlace: Marker | null = null;
   let resetSignal = 0;
   let loading = true;
+
   let menuOpen = false;
   let searchQuery = '';
   let listMode: 'plaats' | 'artiest' = 'plaats';
   let openArtists = new Set<string>();
 
-  // ------------------------------
-  // 📦 DATA + ROUTE LOGICA
-  // ------------------------------
+  // -----------------------------------------
+  // 🧭 NAVIGATIE HELPERS
+  // -----------------------------------------
+  function gotoPlace(placeName: string) {
+    const encoded = encodeURIComponent(placeName.toLowerCase());
+    const to = base ? `${base}/${encoded}/` : `/${encoded}/`;
+
+    // voorkom onnodige navigatie-lussen
+    if (browser && location.pathname === to) return;
+
+    goto(to, { replaceState: false, keepfocus: true, noscroll: true });
+  }
+
+  function gotoHome() {
+    const to = base ? `${base}/` : '/';
+
+    if (browser && location.pathname === to) return;
+
+    goto(to, { replaceState: false, keepfocus: true, noscroll: true });
+  }
+
+  // -----------------------------------------
+  // 🔍 URL → PLACE LOGICA
+  // -----------------------------------------
+  function updateFromUrl() {
+    if (!browser) return;
+
+    let fullPath = decodeURIComponent(location.pathname).toLowerCase();
+    const basePath = base ? (base.endsWith('/') ? base : base + '/') : '';
+
+    if (basePath && fullPath.startsWith(basePath)) {
+      fullPath = fullPath.slice(basePath.length);
+    } else {
+      fullPath = fullPath.replace(/^\//, '');
+    }
+
+    fullPath = fullPath.replace(/\/$/, '');
+
+    if (!fullPath) {
+      selectedPlace = null;
+      return;
+    }
+
+    const match = markers.find(
+      (m) => m.place?.toLowerCase() === fullPath
+    );
+
+    selectedPlace = match || null;
+  }
+
+  // -----------------------------------------
+  // 📦 INITIALISATIE
+  // -----------------------------------------
   onMount(async () => {
     try {
-      markers = await getMarkers();
+      // ⭐ Centrale loader: API (dev/Node) → fallback JSON (static)
+      markers = await loadMarkers();
 
-
-      const updateFromUrl = () => {
-        const path = decodeURIComponent(location.pathname.slice(1));
-        const match = markers.find(
-          (m) => m.place?.toLowerCase() === path.toLowerCase()
-        );
-        selectedPlace = match || null;
-      };
+      // Intro-contact 1x
+      if (browser) {
+        const visited = localStorage.getItem('contactIntroSeen');
+        if (!visited) {
+          contactOpen = true;
+          localStorage.setItem('contactIntroSeen', 'true');
+        }
+      }
 
       updateFromUrl();
       window.addEventListener('popstate', updateFromUrl);
+
     } catch (err) {
-      
+      console.error('Fout bij laden markers:', err);
     } finally {
       loading = false;
     }
 
+    // Keyboard navigatie
     const keyHandler = (e: KeyboardEvent) => {
       if (menuOpen && e.key === 'Escape') return (menuOpen = false);
       if (!selectedPlace) return;
+
       if (e.key === 'Escape') closeModal();
       else if (e.key === 'ArrowRight') nextSong();
       else if (e.key === 'ArrowLeft') prevSong();
     };
 
     window.addEventListener('keydown', keyHandler);
+
     return () => {
       window.removeEventListener('keydown', keyHandler);
-      window.removeEventListener('popstate', () => {});
+      window.removeEventListener('popstate', updateFromUrl);
     };
   });
 
-  // ------------------------------
-  // 🎵 NAVIGATIE + SELECTIE
-  // ------------------------------
+  // -----------------------------------------
+  // 🎵 SONG / PLACE NAVIGATIE
+  // -----------------------------------------
   async function handleSelect(event: CustomEvent) {
     const place = event.detail as Marker;
     selectedPlace = null;
     await tick();
     selectedPlace = place;
-    history.pushState({}, '', `/${encodeURIComponent(place.place || '')}`);
-    
+    gotoPlace(place.place || '');
   }
 
   function openPlace(marker: Marker) {
     selectedPlace = marker;
-    
     menuOpen = false;
-    history.pushState({}, '', `/${encodeURIComponent(marker.place || '')}`);
+    gotoPlace(marker.place || '');
   }
 
   function closeModal() {
     selectedPlace = null;
     resetSignal += 1;
-    history.pushState({}, '', '/');
+    gotoHome();
   }
 
   function nextSong() {
     if (!selectedPlace || !markers.length) return;
     const idx = markers.findIndex((m) => m === selectedPlace);
     selectedPlace = markers[(idx + 1) % markers.length];
-    history.pushState({}, '', `/${encodeURIComponent(selectedPlace.place || '')}`);
+    gotoPlace(selectedPlace.place || '');
   }
 
   function prevSong() {
     if (!selectedPlace || !markers.length) return;
     const idx = markers.findIndex((m) => m === selectedPlace);
     selectedPlace = markers[(idx - 1 + markers.length) % markers.length];
-    history.pushState({}, '', `/${encodeURIComponent(selectedPlace.place || '')}`);
+    gotoPlace(selectedPlace.place || '');
   }
 
   function toggleArtist(artist: string) {
@@ -105,23 +164,20 @@
     openArtists = next;
   }
 
-  // ------------------------------
-  // ⚙️ UI BEHAVIOR
-  // ------------------------------
+  // -----------------------------------------
+  // 🖼️ TITEL UPDATES
+  // -----------------------------------------
   afterUpdate(() => {
-    if (browser && selectedPlace) {
-      document.title = `Liedjeskaart - ${selectedPlace.place}`;
-    } else if (browser) {
-      document.title = 'Liedjeskaart van Nederland';
-    }
+    if (!browser) return;
+
+    document.title = selectedPlace
+      ? `Liedjeskaart - ${selectedPlace.place}`
+      : 'Liedjeskaart van Nederland';
   });
 </script>
 
 <style src="$lib/PageContent.css"></style>
 
-<!-- ------------------------------ -->
-<!-- 💿 LAADSTATUS -->
-<!-- ------------------------------ -->
 {#if loading}
   <Spinner />
 {:else}
@@ -148,6 +204,7 @@
     on:closeMenu={() => (menuOpen = false)}
     on:setListMode={(e) => (listMode = e.detail)}
     on:setSearch={(e) => (searchQuery = e.detail)}
+    on:openContact={() => (contactOpen = true)}
   />
 
   {#if selectedPlace}
@@ -159,3 +216,8 @@
     />
   {/if}
 {/if}
+
+<ContactModal
+  bind:open={contactOpen}
+  on:close={() => (contactOpen = false)}
+/>

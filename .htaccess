@@ -1,0 +1,37 @@
+# -----------------------------------------------------
+# 🌐 SPA ROUTING VOOR /liedjeskaart/
+# -----------------------------------------------------
+
+RewriteEngine On
+RewriteBase /liedjeskaart/
+
+# ⛔ Harde refresh of directe URL binnen SvelteKit/SPA
+#    Laat echte bestanden en mappen met rust
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# 👉 Alles doorsturen naar index.html
+RewriteRule ^ /liedjeskaart/index.html [QSA,L]
+
+# -----------------------------------------------------
+# 🗂️ CACHE-VERBETERINGEN (alleen statische assets)
+# -----------------------------------------------------
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 month"
+  ExpiresByType application/javascript "access plus 1 month"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+</IfModule>
+
+# -----------------------------------------------------
+# ✔️ PREVENT MIME-SNIFFING ERRORS
+# -----------------------------------------------------
+Header set X-Content-Type-Options "nosniff"
+
+# -----------------------------------------------------
+# ⚡ Extra: Allow SPA use of subdirectory without parent interference
+# -----------------------------------------------------
+Options -MultiViews

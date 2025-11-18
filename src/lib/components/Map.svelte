@@ -10,20 +10,10 @@
   import VectorLayer from 'ol/layer/Vector';
   import VectorSource from 'ol/source/Vector';
   import Cluster from 'ol/source/Cluster';
-  import {
-    Style,
-    Text,
-    Fill,
-    Stroke,
-    Circle as CircleStyle
-  } from 'ol/style';
+  import { Style, Text, Fill, Stroke, Circle as CircleStyle } from 'ol/style';
   import { defaults as defaultControls, Attribution, Zoom } from 'ol/control';
   import { easeOut } from 'ol/easing';
   import 'ol/ol.css';
-
-  import { LineString } from 'ol/geom';
-  
-
   import type { Marker } from '$lib/types';
 
   export let markers: Marker[] = [];
@@ -35,29 +25,75 @@
   let view: View;
   let nlExtent: number[];
   let clusterLayer: VectorLayer<Cluster>;
-  let lastZoomBeforeSelect: number | null = null;
+  let baseLayer: TileLayer;
 
   const dispatch = createEventDispatcher();
 
-  const MAPTILER_KEY = 'lzknyttwstKLqQUfEgLx'; // x
   const LABEL_ZOOM_THRESHOLD = 9.6;
   const DEFAULT_ZOOM = 7.4;
   const SELECT_ZOOM = 12;
 
-  onMount(() => {
-    const nlExtentWGS84 = [3.0, 50.7, 7.3, 53.7];
-    const projection = getProjection('EPSG:3857');
-    nlExtent = transformExtent(nlExtentWGS84, 'EPSG:4326', projection);
+  // State
+  let mapInitialized = false;
+  let zoomLocked = false;
 
-    const baseLayer = new TileLayer({
+  // View-state vóór de eerste selectie-zoom
+  let lastZoomBeforeSelect: number | null = null;
+  let lastViewCenterBeforeSelect: number[] | null = null;
+
+  // Om te detecteren wanneer resetSignal echt veranderd is
+  let lastResetSignal = 0;
+
+  /* ------------------------------
+      HELPERS
+  ------------------------------ */
+  function createBaseLayer(theme: string) {
+    const style = theme === 'dark' ? 'darkmatter' : 'aquarelle';
+    return new TileLayer({
       source: new XYZ({
-        url: `https://api.maptiler.com/maps/aquarelle/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
+        url: `https://woutervanitterzon.nl/tiles/${style}/{z}/{x}/{y}.png`,
         attributions: [
           '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a>',
           '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
         ]
       })
     });
+  }
+
+  function fixZoomPosition() {
+    const zoomEl = mapElement?.querySelector('.custom-zoom') as HTMLElement;
+    if (zoomEl) {
+      zoomEl.style.position = 'absolute';
+      zoomEl.style.top = '10px';
+      zoomEl.style.right = '10px';
+      zoomEl.style.left = 'auto';
+      zoomEl.style.bottom = 'auto';
+      zoomEl.style.zIndex = '1000';
+    }
+  }
+
+  function animateWithLock(
+    params: { center?: number[]; zoom?: number; duration?: number; easing?: (t: number) => number },
+    done?: () => void
+  ) {
+    if (!view) return;
+    zoomLocked = true;
+    view.animate({ duration: 600, easing: easeOut, ...params }, () => {
+      zoomLocked = false;
+      done && done();
+    });
+  }
+
+  /* ------------------------------
+      INIT
+  ------------------------------ */
+  onMount(() => {
+    const nlExtentWGS84 = [3.0, 50.7, 7.3, 53.7];
+    const projection = getProjection('EPSG:3857');
+    nlExtent = transformExtent(nlExtentWGS84, 'EPSG:4326', projection);
+
+    let currentTheme = document.documentElement.dataset.theme || 'light';
+    baseLayer = createBaseLayer(currentTheme);
 
     const nlCenter = fromLonLat([5.3, 52.2]);
     view = new View({
@@ -72,9 +108,7 @@
 
     const attributionControl = new Attribution({ collapsible: false });
     attributionControl.element.classList.add('custom-attribution');
-
     const zoomControl = new Zoom({ className: 'ol-zoom custom-zoom' });
-    
 
     map = new Map({
       target: mapElement,
@@ -86,49 +120,63 @@
       ])
     });
 
+    // 🟢 HARD FIX 1 — meteen naukeurig formaat
+    requestAnimationFrame(() => map.updateSize());
+
     map.once('postrender', () => {
-      const zoomEl = mapElement.querySelector('.custom-zoom') as HTMLElement;
-      if (zoomEl) {
-        zoomEl.style.position = 'absolute';
-        zoomEl.style.top = '10px';
-        zoomEl.style.right = '10px';
-        zoomEl.style.left = 'auto';
-        zoomEl.style.bottom = 'auto';
+      const size = map.getSize();
+      if (size) {
+        view.fit(nlExtent, { size, padding: [40, 40, 40, 40], duration: 0 });
+        view.setZoom(DEFAULT_ZOOM);
       }
+      fixZoomPosition();
+      mapInitialized = true;
     });
 
+    // 🟢 HARD FIX 2 — dubbel delayed update
+    setTimeout(() => {
+      if (map) {
+        map.updateSize();
+        setTimeout(() => map.updateSize(), 120);
+      }
+    }, 180);
+
+    /* Interaction */
     map.on('pointermove', (e) => {
       const hit = map.hasFeatureAtPixel(e.pixel);
       map.getTargetElement().style.cursor = hit ? 'pointer' : '';
     });
 
-    const fitToNL = () => {
-      const size = map.getSize();
-      if (!size || size[0] === 0) {
-        requestAnimationFrame(fitToNL);
-        return;
-      }
-      view.fit(nlExtent, { size, padding: [40, 40, 40, 40], duration: 0 });
-      view.setZoom(DEFAULT_ZOOM);
-    };
-    map.once('postrender', fitToNL);
-
     map.on('click', handleMapClick);
-    view.on('change:resolution', () => updateClusterLabels());
+    view.on('change:resolution', updateClusterLabels);
+
+    /* Thema switch */
+    const observer = new MutationObserver(() => {
+      const newTheme = document.documentElement.dataset.theme;
+      if (newTheme && newTheme !== currentTheme) {
+        currentTheme = newTheme;
+        map.removeLayer(baseLayer);
+        baseLayer = createBaseLayer(newTheme);
+        map.getLayers().insertAt(0, baseLayer);
+        fixZoomPosition();
+      }
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
   });
 
-  // 🎨 Clusters en markers in retrostijl
+  /* ------------------------------
+      CLUSTERS
+  ------------------------------ */
   function renderClusters() {
-    if (!map || !markers || markers.length === 0) return;
+    if (!map || !markers?.length) return;
     const validMarkers = markers.filter((m) => !isNaN(m.lon) && !isNaN(m.lat));
-    if (validMarkers.length === 0) return;
+    if (!validMarkers.length) return;
 
     const features = validMarkers.map(
-      (m) =>
-        new Feature({
-          geometry: new Point(fromLonLat([m.lon, m.lat])),
-          marker: m
-        })
+      (m) => new Feature({ geometry: new Point(fromLonLat([m.lon, m.lat])), marker: m })
     );
 
     const clusterSource = new Cluster({
@@ -143,17 +191,9 @@
 
       const root = getComputedStyle(document.documentElement);
       const fontBody = root.getPropertyValue('--font-body').trim() || 'Karla, sans-serif';
+      const primary = root.getPropertyValue('--color-primary').trim() || '#e67e22';
+      const primarySoft = root.getPropertyValue('--color-primary-soft').trim() || '#f3d7b0';
 
-
-      const primary = getComputedStyle(document.documentElement)
-        .getPropertyValue('--color-primary')
-        .trim() || '#e67e22';
-
-      const primarySoft = getComputedStyle(document.documentElement)
-        .getPropertyValue('--color-primary-soft')
-        .trim() || '#f3d7b0';
-
-      // 🟠 Cluster van meerdere markers
       if (size > 1) {
         return new Style({
           image: new CircleStyle({
@@ -169,7 +209,6 @@
         });
       }
 
-      // 🔸 Enkele marker — minimalistische retrocirkel
       const marker = clustered[0].get('marker') as Marker;
       const textStyle =
         zoom >= LABEL_ZOOM_THRESHOLD
@@ -178,7 +217,7 @@
               offsetY: 10,
               textAlign: 'center',
               textBaseline: 'top',
-              font: `600 13px ${fontBody}, sans-serif`,
+              font: `600 13px ${fontBody}`,
               fill: new Fill({ color: '#2f2f2f' }),
               stroke: new Stroke({ color: '#fff', width: 3 })
             })
@@ -206,131 +245,125 @@
     if (clusterLayer) clusterLayer.changed();
   }
 
+  /* ------------------------------
+      KLIK HANDLING
+  ------------------------------ */
   function handleMapClick(evt) {
-    const feature = map.forEachFeatureAtPixel(evt.pixel, (f) => f, {
-      hitTolerance: 10
-    });
+    if (zoomLocked) return;
+
+    const feature = map.forEachFeatureAtPixel(evt.pixel, (f) => f, { hitTolerance: 10 });
     if (!feature) return;
+
     const clustered = feature.get('features');
     if (!clustered) return;
 
     if (clustered.length > 1) {
-      view.animate({
-        center: evt.coordinate,
-        zoom: Math.min(
-          (view.getZoom() ?? DEFAULT_ZOOM) + 1.2,
-          view.getMaxZoom() ?? 13
-        ),
-        duration: 400
+      const clusterCoords = feature.getGeometry().getCoordinates();
+      animateWithLock({
+        center: clusterCoords,
+        zoom: Math.min((view.getZoom() ?? DEFAULT_ZOOM) + 1.2, view.getMaxZoom() ?? 13),
+        duration: 400,
+        easing: easeOut
       });
     } else {
       const marker = clustered[0].get('marker') as Marker;
-      const coords = clustered[0].getGeometry().getCoordinates();
-      lastZoomBeforeSelect = view.getZoom() ?? DEFAULT_ZOOM;
-      view.animate(
-        { center: coords, zoom: SELECT_ZOOM, duration: 600 },
-        () => dispatch('select', marker)
+      dispatch('select', marker);
+    }
+  }
+
+  /* ------------------------------
+      REACTIEVE BLOKKEN
+  ------------------------------ */
+  $: if (map && markers) renderClusters();
+
+  $: if (mapInitialized && view && resetSignal !== lastResetSignal) {
+    const current = resetSignal;
+    lastResetSignal = current;
+
+    if (current > 0) {
+      const targetCenter = lastViewCenterBeforeSelect ?? fromLonLat([5.3, 52.2]);
+      const targetZoom = lastZoomBeforeSelect ?? DEFAULT_ZOOM;
+
+      animateWithLock(
+        { center: targetCenter, zoom: targetZoom, duration: 800, easing: easeOut },
+        () => {
+          lastZoomBeforeSelect = null;
+          lastViewCenterBeforeSelect = null;
+        }
       );
     }
   }
 
-  $: if (map && markers) renderClusters();
+  $: if (map && activeMarker && mapInitialized && !zoomLocked) {
+    if (lastZoomBeforeSelect === null || lastViewCenterBeforeSelect === null) {
+      lastZoomBeforeSelect = view.getZoom() ?? DEFAULT_ZOOM;
+      lastViewCenterBeforeSelect = view.getCenter() ?? fromLonLat([5.3, 52.2]);
+    }
 
-  $: if (view && resetSignal > 0) {
-    const zoomTerug = lastZoomBeforeSelect ?? DEFAULT_ZOOM;
-    const nlCenter = fromLonLat([5.3, 52.2]);
-    view.animate({
-      center: nlCenter,
-      zoom: zoomTerug,
-      duration: 800,
+    const coords = fromLonLat([activeMarker.lon, activeMarker.lat]);
+    animateWithLock({
+      center: coords,
+      zoom: SELECT_ZOOM,
+      duration: 600,
       easing: easeOut
     });
-  }
-
-  $: if (map && activeMarker) {
-    const coords = fromLonLat([activeMarker.lon, activeMarker.lat]);
-    view.animate({ center: coords, zoom: SELECT_ZOOM, duration: 600 });
   }
 </script>
 
 <div bind:this={mapElement} id="map"></div>
 
 <style>
-#map {
-  width: 100%;
-  height: 100%;
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  background: radial-gradient(circle at center, #ffffff 60%, #fdfbf7 100%);
-  mask-image: radial-gradient(
-    circle at center,
-    rgba(0, 0, 0, 1) 72%,
-    rgba(0, 0, 0, 0.7) 85%,
-    rgba(0, 0, 0, 0.25) 100%
-  );
-  mask-mode: alpha;
-  -webkit-mask-image: radial-gradient(
-    circle at center,
-    rgba(0, 0, 0, 1) 72%,
-    rgba(0, 0, 0, 0.7) 85%,
-    rgba(0, 0, 0, 0.25) 100%
-  );
-  -webkit-mask-mode: alpha;
-  transition: mask-image 0.4s ease, background 0.4s ease;
-}
+  #map {
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    inset: 0;
+    z-index: 1;
 
-/* 🪶 Attribution rechts-onder */
-.ol-control.ol-attribution.custom-attribution {
-  background: rgba(255, 255, 255, 0.45) !important;
-  color: rgba(0, 0, 0, 0.45) !important;
-  font-size: 11px !important;
-  border-radius: 8px !important;
-  padding: 2px 6px !important;
-  border: none !important;
-  box-shadow: none !important;
-  backdrop-filter: blur(4px);
-  right: 10px !important;
-  bottom: 10px !important;
-}
-.ol-attribution.custom-attribution a {
-  color: rgba(0, 0, 0, 0.55) !important;
-  text-decoration: none !important;
-}
-.ol-attribution.custom-attribution a:hover {
-  color: rgba(0, 0, 0, 0.8) !important;
-  text-decoration: underline !important;
-}
-
-/* 📍 Zoom rechtsboven */
-.custom-zoom {
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-.custom-zoom button {
-  background: rgba(255, 255, 255, 0.65);
-  color: #333;
-  border: none;
-  border-radius: 8px;
-  width: 40px;
-  height: 40px;
-  font-size: 22px;
-  cursor: pointer;
-  transition: background 0.2s ease, transform 0.15s ease;
-}
-.custom-zoom button:hover {
-  background: rgba(255, 255, 255, 0.9);
-  transform: scale(1.05);
-}
-
-@media (max-width: 700px) {
-  .custom-zoom button {
-    width: 46px;
-    height: 46px;
-    font-size: 24px;
+    /* ❌ WEG: GEEN transition op de map container! */
+    background: radial-gradient(circle at center, #ffffff 60%, #fdfbf7 100%);
   }
-}
+
+  /* 📍 Zoom rechtsboven forceren */
+  .ol-zoom.custom-zoom {
+    position: absolute !important;
+    top: 10px !important;
+    right: 10px !important;
+    left: auto !important;
+    bottom: auto !important;
+    z-index: 1000 !important;
+  }
+
+  .custom-zoom {
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .custom-zoom button {
+    background: rgba(255, 255, 255, 0.65);
+    color: #333;
+    border: none;
+    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    font-size: 22px;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
+  }
+
+  .custom-zoom button:hover {
+    background: rgba(255, 255, 255, 0.9);
+    transform: scale(1.05);
+  }
+
+  @media (max-width: 700px) {
+    .custom-zoom button {
+      width: 46px;
+      height: 46px;
+      font-size: 24px;
+    }
+  }
 </style>

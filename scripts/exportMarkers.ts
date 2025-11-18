@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // 🧭 Importeer sheetClient zonder $lib-alias
-import { getMarkersFromApi } from '../src/lib/sheetClient.ts';
+import { getMarkersFromApi } from '../src/lib/server/sheetClient.ts';
 
 async function exportMarkers() {
   console.log('📥 Ophalen van data uit Google Sheet...');
@@ -18,7 +18,7 @@ async function exportMarkers() {
     const markers = await getMarkersFromApi(true);
 
     // ✅ Pad naar outputbestand
-    const outPath = path.resolve(__dirname, '../src/lib/data/markers.json');
+    const outPath = path.resolve(__dirname, '../static/data/markers.json');
 
     // ✍️ Bestand schrijven
     fs.writeFileSync(outPath, JSON.stringify(markers, null, 2), 'utf-8');

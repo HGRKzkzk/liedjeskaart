@@ -1,29 +1,26 @@
 import adapter from '@sveltejs/adapter-static';
-import autoAdapter from '@sveltejs/adapter-auto';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
-const dev = process.argv.includes('dev');
-const isStatic = process.env.STATIC === 'true';
+const mode = process.env.BUILD_MODE || 'spa';
+const isStatic = mode === 'static';
 
 export default {
   preprocess: vitePreprocess(),
-  kit: {
-    adapter: isStatic
-      ? adapter({
-          fallback: 'index.html', // SPA gedrag
-        })
-      : autoAdapter(),
 
-    alias: {
-      $lib: './src/lib',
-    },
+  kit: {
+    adapter: adapter({
+      fallback: mode === 'spa' ? 'index.html' : undefined,
+      strict: false
+    }),
 
     paths: {
-      base: dev ? '' : '/liedjeskaart', // 👈 essentieel voor deploy
+      base: isStatic ? '/liedjeskaart' : ''
     },
 
     prerender: {
-      handleHttpError: 'warn',
-    },
-  },
+      entries: ['*'],
+      handleHttpError: 'warn'
+    }
+  }
 };
+ 
