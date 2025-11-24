@@ -3,6 +3,7 @@
   import { createEventDispatcher } from 'svelte';
   import { introHtmlBase, extraHtmlBase } from '../data/content';
   export let count = 0;
+  
 
   let introHtml = '';
   let extraHtml = '';
@@ -65,13 +66,13 @@
 
 {#if open}
 <div class="overlay">
-  <div class="modal" in:scale={{ duration: 200 }} out:scale={{ duration: 150 }}>
+  <div class="modal contact-modal" in:scale={{ duration: 200 }} out:scale={{ duration: 150 }}>
 
     <!-- STICKY HEADER -->
     <div class="modal-header">
       <h3>
         {#if extraInfo}
-          Verantwoording, dankwoord, etc.
+          Verantwoording, dankwoord, <i>etcetera</i>.
         {:else if introDone}
           Contact
         {:else}
@@ -90,7 +91,7 @@
       {#if !introDone && !extraInfo}
         <!-- INTRO -->
         <div class="intro" on:click={handleIntroClick}>
-ssfkjhfskjh
+
 
           {@html introHtml}
         </div>
@@ -137,6 +138,11 @@ ssfkjhfskjh
 <style>
   @import '$lib/styles/ModalBase.css';
 
+.contact-modal {
+  z-index: 33;
+  height:45vh;
+}
+
   /* HEADER */
   .modal-header {
     position: sticky;
@@ -149,6 +155,7 @@ ssfkjhfskjh
     justify-content: center;
     align-items: center;
   }
+
 
   .modal-header h3 {
     flex: 1;
@@ -164,8 +171,8 @@ ssfkjhfskjh
 
   /* Scroll area */
   .scroll-area {
-      
     overflow-y: auto;
+    max-height:10px;  
     max-height: calc(90vh - 120px);
     padding: 1.3rem 1.5rem;
   }
@@ -255,6 +262,10 @@ ssfkjhfskjh
     gap: 1rem;
     padding: 1rem 1.5rem;
   }
+
+@media (max-height: 800px) {
+  .modal {height:65vh;}
+}
 
 
   /* --- MOBILE BOOST: maak modal veel hoger, betere scrollruimte --- */

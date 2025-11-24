@@ -81,6 +81,7 @@
   // 📦 INITIALISATIE
   // -----------------------------------------
   onMount(async () => {
+    
     try {
       // ⭐ Centrale loader: API (dev/Node) → fallback JSON (static)
       markers = await loadMarkers();
@@ -101,6 +102,7 @@
       console.error('Fout bij laden markers:', err);
     } finally {
       loading = false;
+      console.log('markers loaded:', markers.length, markers[0]);
     }
 
     // Keyboard navigatie
@@ -218,6 +220,7 @@
 {/if}
 
 <ContactModal
+  count={markers.length}
   bind:open={contactOpen}
   on:close={() => (contactOpen = false)}
 />

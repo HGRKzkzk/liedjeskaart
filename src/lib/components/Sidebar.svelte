@@ -324,6 +324,7 @@
 }
 .contact-link:hover {
   color: var(--color-link-hover);
+  text-decoration: underline;
 }
 
 /* ------------------------------ */
@@ -439,10 +440,10 @@
 /* ------------------------------ */
 .random-btn-sticky {
   position: sticky;
-  bottom: 0;
+  bottom: 0px;
   
   text-align: center;
-  padding: 0rem 0 1.5rem 0.5rem;
+  padding: 0rem 0 0.1rem 0.5rem;
   z-index: 24;
 }
 

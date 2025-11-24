@@ -4,15 +4,15 @@ export const siteMeta =  {
   title: 'Liedjeskaart van Nederland',
   description:
      'Een interactief overzicht van de %COUNT% mooiste, ontroerendste en grappigste liedjes over plaatsen in Nederland.',
-  keywords: 'muziek, Nederland, liedjes, pla  atsen, kaart, artiesten',
+  keywords: 'muziek, Nederland, liedjes, plaatsen, kaart, artiesten, kleinkunst, cabaret, theater, smartlappen, archief, popmuziek',
   author: 'Wouter van Itterzon',
   robots: 'index, follow',
 
   // 🔹 Open Graph (voor Facebook, LinkedIn, WhatsApp, etc.)
   ogTitle: 'Liedjeskaart van Nederland',
   ogDescription:
-    `Ontdek de %COUNT% mooiste liedjes over Nederlands op een interactieve kaart.`,
-  ogImage: 'https://woutervanitterzon.nl/liedjeskaart/social.png', // ✅ absolute URL!
+    `Ontdek de %COUNT% mooiste, leukste en grappigste liedjes over Nederland op een interactieve kaart.`,
+  ogImage: 'https://woutervanitterzon.nl/liedjeskaart/img/liedjeskaart.jpg', // ✅ absolute URL!
   ogUrl: 'https://woutervanitterzon.nl/liedjeskaart',
   ogType: 'website',
   ogSiteName: 'Liedjeskaart',
@@ -22,7 +22,7 @@ export const siteMeta =  {
   twitterCard: 'summary_large_image',
   twitterTitle: 'Liedjeskaart van Nederland',
   twitterDescription:
-    `Ontdek de  %COUNT% mooiste liedjes over Nederlands op een interactieve kaart.`,
-  twitterImage: 'https://woutervanitterzon.nl/liedjeskaart/social.png',
+    `Ontdek de  %COUNT% mooiste, leukste en grappigste liedjes over Nederland op een interactieve kaart.`,
+  twitterImage: 'https://woutervanitterzon.nl/liedjeskaart/img/liedjeskaart.jpg',
   twitterImageAlt: 'Liedjeskaart van Nederland',
 };

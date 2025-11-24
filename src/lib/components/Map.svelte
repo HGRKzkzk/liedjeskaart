@@ -33,15 +33,12 @@
   const DEFAULT_ZOOM = 7.4;
   const SELECT_ZOOM = 12;
 
-  // State
   let mapInitialized = false;
   let zoomLocked = false;
 
-  // View-state vóór de eerste selectie-zoom
   let lastZoomBeforeSelect: number | null = null;
   let lastViewCenterBeforeSelect: number[] | null = null;
 
-  // Om te detecteren wanneer resetSignal echt veranderd is
   let lastResetSignal = 0;
 
   /* ------------------------------
@@ -51,7 +48,7 @@
     const style = theme === 'dark' ? 'darkmatter' : 'aquarelle';
     return new TileLayer({
       source: new XYZ({
-        url: `https://woutervanitterzon.nl/tiles/${style}/{z}/{x}/{y}.png`,
+        url: `https://woutervanitterzon.nl/tiles.php?style=${style}&z={z}&x={x}&y={y}`,
         attributions: [
           '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a>',
           '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
@@ -120,7 +117,6 @@
       ])
     });
 
-    // 🟢 HARD FIX 1 — meteen naukeurig formaat
     requestAnimationFrame(() => map.updateSize());
 
     map.once('postrender', () => {
@@ -133,7 +129,6 @@
       mapInitialized = true;
     });
 
-    // 🟢 HARD FIX 2 — dubbel delayed update
     setTimeout(() => {
       if (map) {
         map.updateSize();
@@ -141,7 +136,6 @@
       }
     }, 180);
 
-    /* Interaction */
     map.on('pointermove', (e) => {
       const hit = map.hasFeatureAtPixel(e.pixel);
       map.getTargetElement().style.cursor = hit ? 'pointer' : '';
@@ -150,17 +144,24 @@
     map.on('click', handleMapClick);
     view.on('change:resolution', updateClusterLabels);
 
-    /* Thema switch */
+    /* THEMA SWITCH — ⭐ DIRECTE RERENDER FIX */
     const observer = new MutationObserver(() => {
       const newTheme = document.documentElement.dataset.theme;
       if (newTheme && newTheme !== currentTheme) {
         currentTheme = newTheme;
+
+        // vervang tiles
         map.removeLayer(baseLayer);
         baseLayer = createBaseLayer(newTheme);
         map.getLayers().insertAt(0, baseLayer);
+
+        // ⭐ NIEUW: clusters meteen verversen
+        if (clusterLayer) clusterLayer.changed();
+
         fixZoomPosition();
       }
     });
+
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['data-theme']
@@ -191,8 +192,11 @@
 
       const root = getComputedStyle(document.documentElement);
       const fontBody = root.getPropertyValue('--font-body').trim() || 'Karla, sans-serif';
+
       const primary = root.getPropertyValue('--color-primary').trim() || '#e67e22';
       const primarySoft = root.getPropertyValue('--color-primary-soft').trim() || '#f3d7b0';
+
+      const textColor = root.getPropertyValue('--color-cluster-text').trim() || '#2f2f2f';
 
       if (size > 1) {
         return new Style({
@@ -203,13 +207,14 @@
           }),
           text: new Text({
             text: size.toString(),
-            fill: new Fill({ color: '#2f2f2f' }),
+            fill: new Fill({ color: textColor }),
             font: `600 12px ${fontBody}`
           })
         });
       }
 
       const marker = clustered[0].get('marker') as Marker;
+
       const textStyle =
         zoom >= LABEL_ZOOM_THRESHOLD
           ? new Text({
@@ -218,7 +223,7 @@
               textAlign: 'center',
               textBaseline: 'top',
               font: `600 13px ${fontBody}`,
-              fill: new Fill({ color: '#2f2f2f' }),
+              fill: new Fill({ color: textColor }),
               stroke: new Stroke({ color: '#fff', width: 3 })
             })
           : undefined;
@@ -246,7 +251,7 @@
   }
 
   /* ------------------------------
-      KLIK HANDLING
+      CLICK HANDLING
   ------------------------------ */
   function handleMapClick(evt) {
     if (zoomLocked) return;
@@ -272,7 +277,7 @@
   }
 
   /* ------------------------------
-      REACTIEVE BLOKKEN
+      REACTIVE BLOCKS
   ------------------------------ */
   $: if (map && markers) renderClusters();
 
@@ -319,12 +324,9 @@
     position: fixed;
     inset: 0;
     z-index: 1;
-
-    /* ❌ WEG: GEEN transition op de map container! */
     background: radial-gradient(circle at center, #ffffff 60%, #fdfbf7 100%);
   }
 
-  /* 📍 Zoom rechtsboven forceren */
   .ol-zoom.custom-zoom {
     position: absolute !important;
     top: 10px !important;

@@ -8,6 +8,7 @@
   --color-link: #2b5d9b;
   --color-primary: #e67e22;
   --color-primary-soft: #f3d7b0;
+  --color-link-hover: #e67e22;
 
 
   /* ✨ Schaduw & blur */
@@ -78,4 +79,13 @@ a:hover {
 
   --color-bg-overlay: rgba(0, 0, 0, 0.4);
   --blur-overlay: blur(6px);
+}
+
+
+:root[data-theme='light'] {
+  --color-cluster-text: #2f2f2f;
+}
+
+:root[data-theme='dark'] {
+  --color-cluster-text: #ffffff;
 }

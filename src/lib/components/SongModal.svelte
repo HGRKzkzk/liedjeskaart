@@ -249,7 +249,7 @@
       {/if}
     </div>
   </div>
-
+<br>
   <!-- Sticky footer met navigatie -->
   <div class="modal-footer">
     <button class="nav-btn" on:click={() => dispatch('prev')}>← Vorige</button>
@@ -292,11 +292,9 @@
     box-shadow: var(--shadow-lg);
     width: min(90%, 600px);
     z-index: 31;
-
     display: flex;
     flex-direction: column;
-    max-height: 90vh;
-    height: 50vh;
+    max-height:110vh;
     overflow: hidden;
   }
 

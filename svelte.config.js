@@ -1,26 +1,27 @@
 import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
-const mode = process.env.BUILD_MODE || 'spa';
-const isStatic = mode === 'static';
+const dev = process.env.NODE_ENV === 'development';
 
 export default {
   preprocess: vitePreprocess(),
 
   kit: {
     adapter: adapter({
-      fallback: mode === 'spa' ? 'index.html' : undefined,
-      strict: false
+      fallback: 'index.html'
     }),
 
     paths: {
-      base: isStatic ? '/liedjeskaart' : ''
+      base: dev ? '' : '/liedjeskaart'
     },
 
+    // ✔ SvelteKit 2 correcte manier om prerender uit te zetten
     prerender: {
-      entries: ['*'],
-      handleHttpError: 'warn'
+      entries: [],          // niets prerenderen
+      crawl: false,         // niet crawlen
+      handleHttpError: 'ignore',   // voorkom build errors
+      handleMissingId: 'ignore',
+      handleUnseenRoutes: 'ignore'
     }
   }
 };
- 

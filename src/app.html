@@ -1,48 +1,55 @@
 <!doctype html>
 <html lang="nl">
-  <head>
-    <!-- ✅ Dynamisch bijgewerkt via scripts/updateAppHtml.js -->
-    <title>Liedjeskaart van Nederland</title>
-                                                                                <meta name="twitter:image:alt" content="Liedjeskaart van Nederland" />
-                                                                                <meta name="twitter:image" content="https://woutervanitterzon.nl/liedjeskaart/social.png" />
-                                                                                <meta name="twitter:description" content="Ontdek de  %COUNT% mooiste liedjes over Nederlands op een interactieve kaart." />
-                                                                                <meta name="twitter:title" content="Liedjeskaart van Nederland" />
-                                                                                <meta name="twitter:card" content="summary_large_image" />
-                                                                                <meta property="og:locale" content="nl_NL" />
-                                                                                <meta property="og:site_name" content="Liedjeskaart" />
-                                                                                <meta property="og:image:alt" content="" />
-                                                                                    <meta name="description" content="Een interactief overzicht van de 208 mooiste, ontroerendste en grappigste liedjes over plaatsen in Nederland." />
-                                                                                    <meta name="keywords" content="muziek, Nederland, liedjes, pla  atsen, kaart, artiesten" />
-                                                                                    <meta name="author" content="Wouter van Itterzon" />
-                                                                                    <meta name="robots" content="index, follow" />
 
-    <!-- ✅ Optionele Open Graph / Twitter -->
-                                                                                    <meta property="og:title" content="Liedjeskaart van Nederland" />
-                                                                                    <meta property="og:description" content="Ontdek de %COUNT% mooiste liedjes over Nederlands op een interactieve kaart." />
-                                                                                    <meta property="og:type" content="website" />
-                                                                                    <meta property="og:image" content="https://woutervanitterzon.nl/liedjeskaart/social.png" />
-                                                                                    <meta property="og:url" content="https://woutervanitterzon.nl/liedjeskaart" />
+<head>
+    <meta name="app-version" content="v2025-11-23-02">
 
-    <link rel="icon" type="image/png" href="%sveltekit.assets%/favicon.png" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+  <!-- ✔️ Dynamisch bijgewerkt via scripts/updateAppHtml.js -->
+  <title>Liedjeskaart van Nederland</title>
+  <meta name="twitter:image:alt" content="Liedjeskaart van Nederland" />
+  <meta name="twitter:image" content="https://woutervanitterzon.nl/liedjeskaart/img/liedjeskaart.jpg">
+  <meta name="twitter:description" content="Ontdek de  208 mooiste, leukste en grappigste liedjes over Nederland op een interactieve kaart.">
+  <meta name="twitter:title" content="Liedjeskaart van Nederland">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta property="og:locale" content="nl_NL">
+  <meta property="og:site_name" content="Liedjeskaart" />
+  <meta property="og:image:alt" content="" />
 
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Een interactief overzicht van de 208 mooiste, ontroerendste en grappigste liedjes over plaatsen in Nederland.">
+  <meta name="keywords" content="muziek, Nederland, liedjes, plaatsen, kaart, artiesten, kleinkunst, cabaret, theater, smartlappen, archief, popmuziek">
+  <meta name="author" content="Wouter van Itterzon">
+  <meta name="robots" content="index, follow">
 
-    %sveltekit.head%
-  </head>
-  <body data-sveltekit-preload-data="hover">
-    <div style="display: contents">%sveltekit.body%</div>
-    <script>
-  if (location.hostname !== 'localhost' && 'serviceWorker' in navigator) {
-    addEventListener('load', function () {
-      navigator.serviceWorker.register('/liedjeskaart/service-worker.js');
-    });
-  }
-</script>
-    <script async src="https://scripts.simpleanalyticscdn.com/latest.js"></script>
-  </body>
+  <meta property="og:title" content="Liedjeskaart van Nederland">
+  <meta property="og:description" content="Ontdek de 208 mooiste, leukste en grappigste liedjes over Nederland op een interactieve kaart.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://woutervanitterzon.nl/liedjeskaart/img/liedjeskaart.jpg">
+  <meta property="og:url" content="https://woutervanitterzon.nl/liedjeskaart">
+
+  <link rel="icon" type="image/png" href="%sveltekit.assets%/favicon.png" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  %sveltekit.head%
+</head>
+
+<body data-sveltekit-preload-data="hover">
+  <div style="display: contents">%sveltekit.body%</div>
+
+  <!-- ✔️ NIEUWE SERVICE WORKER REGISTRATIE -->
+  <script>
+    if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
+      addEventListener('load', () => {
+        navigator.serviceWorker.register('/liedjeskaart/service-worker-v2.js')
+          .catch(err => console.error('SW reg error:', err));
+      });
+    }
+  </script>
+
+  <script async defer src="https://scripts.simpleanalyticscdn.com/latest.js"></script>
+</body>
+
 </html>

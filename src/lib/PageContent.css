@@ -32,6 +32,7 @@
 
 /* --- MENU TOGGLE BUTTON (hamburger) --- */
 .menu-toggle {
+  color:black;
   position: fixed;
   top: 14px;
   left: 14px;
@@ -43,9 +44,12 @@
   cursor: pointer;
   z-index: 20;
   transition: transform var(--transition-fast), background var(--transition-fast);
+  border:3px solid white;
 }
 .menu-toggle:hover {
+  color:var(--color-primary);
   background: var(--color-bg);
+  border:3px solid var(--color-primary-soft)
 }
 .menu-toggle:active {
   transform: scale(0.96);

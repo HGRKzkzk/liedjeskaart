@@ -1,0 +1,75 @@
+###############################################
+# LIEDJESKAART — PERFECTE .htaccess (2025)
+###############################################
+
+RewriteEngine On
+RewriteBase /liedjeskaart/
+
+#############################################################
+# 1) DIRECT DOORLATEN – JS / CSS / Assets / Tiles / JSON API
+#############################################################
+RewriteRule ^(build|_app|tiles|img|css|js|fonts|favicon\.png|manifest\.json)$ - [L]
+
+# SvelteKit runtime JSON (__data.json)
+RewriteRule ^_app/immutable/nodes/.+/__data\.json$ - [L]
+
+#############################################################
+# 2) BESTAANDE BESTANDEN OF DIRECTORIES SERVEN
+#############################################################
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+#############################################################
+# 3) SPA FALLBACK (absolute MUST!)
+#############################################################
+RewriteCond %{REQUEST_URI} !^/_app/
+RewriteCond %{REQUEST_URI} !^/build/
+RewriteRule ^ index.html [QSA,L]
+
+#############################################################
+# 4) CACHING — hashed files 1 jaar, HTML nooit cachen
+#############################################################
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresDefault "access plus 1 year"
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.(js|css|png|jpe?g|webp|avif|svg|gif|woff2?|ttf|eot|ico|json)$">
+    Header set Cache-Control "public, immutable, max-age=31536000"
+  </FilesMatch>
+
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+#############################################################
+# 5) SECURITY — veilig maar compatibel (incl. SimpleAnalytics)
+#############################################################
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "DENY"
+  Header set X-XSS-Protection "1; mode=block"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+
+  Header set Content-Security-Policy "\
+    default-src 'self'; \
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://scripts.simpleanalyticscdn.com; \
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; \
+    font-src 'self' https://fonts.gstatic.com; \
+    img-src 'self' data: https: blob:; \
+    connect-src 'self' https://api.liedjeskaart.nl https://woutervanitterzon.nl; \
+    object-src 'none'; \
+    base-uri 'self'; \
+    frame-ancestors 'none'; \
+    upgrade-insecure-requests; \
+  "
+</IfModule>
+
+#############################################################
+# 6) EXTRA — LiteSpeed fixes
+#############################################################
+Options -Indexes -MultiViews
