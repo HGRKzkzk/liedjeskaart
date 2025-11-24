@@ -36,8 +36,9 @@ Om zicht te houden op bezoekersgedrag zonder tegen privacyvraagstukken aan te lo
 <b>Bronnen</b><br>
             Doordat mijn prachtige ouders Erik en Irene me fantastisch hebben opgevoed kende ik veel van de liedjes al. De rest heb ik gewoon opgezocht met google. 
             Daarbij bleken welkome bronnen bijvoorbeeld dit uitgebreide <a  rel="noopener noreferrer" href="https://nl.wikisage.org/wiki/Lijst_van_Nederlandstalige_liedjes_met_een_geografische_naam_in_de_titel target="_blank">wikisage overzicht</a>, het <a href="https://poparchiefgroningen.nl/"  rel="noopener noreferrer" target="_blank">Poparchief Groningen</a> en de hele gave en complete website <a target="_blank"  rel="noopener noreferrer" href="https://www.streektaalzang.nl/">Sttreektaalzang.nl</a>.
+
             <br><br>
-<br>
+
           <img src="${base}/img/erikenirene.jpg" alt="Mijn ouders" class="content-img" >
           <p class="caption">Erik en Irene</p>
 <br>

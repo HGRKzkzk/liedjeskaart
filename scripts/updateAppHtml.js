@@ -54,10 +54,12 @@ const siteMeta = {
 // --- Load app.html ---
 let html = fs.readFileSync(appHtmlPath, 'utf8');
 
+// ⭐⭐⭐ NEW: Replace %COUNT% globally (also inside JSON-LD)
+html = html.replace(/%COUNT%/g, markerCount);
+
 // --- Helpers ---
 function upsertMeta(name, content) {
   const tag = `<meta name="${name}" content="${content}">`;
-
   const regex = new RegExp(`<meta[^>]*name="${name}"[^>]*>`, 'i');
   html = regex.test(html)
     ? html.replace(regex, tag)
@@ -66,7 +68,6 @@ function upsertMeta(name, content) {
 
 function upsertOg(property, content) {
   const tag = `<meta property="${property}" content="${content}">`;
-
   const regex = new RegExp(`<meta[^>]*property="${property}"[^>]*>`, 'i');
   html = regex.test(html)
     ? html.replace(regex, tag)
@@ -75,7 +76,6 @@ function upsertOg(property, content) {
 
 function upsertTwitter(name, content) {
   const tag = `<meta name="twitter:${name}" content="${content}">`;
-
   const regex = new RegExp(`<meta[^>]*name="twitter:${name}"[^>]*>`, 'i');
   html = regex.test(html)
     ? html.replace(regex, tag)
@@ -94,6 +94,7 @@ upsertMeta('robots', siteMeta.robots);
 upsertOg('og:title', siteMeta.ogTitle);
 upsertOg('og:description', siteMeta.ogDescription);
 upsertOg('og:image', siteMeta.ogImage);
+upsertOg('og:image:alt', siteMeta.ogImageAlt);
 upsertOg('og:url', siteMeta.ogUrl);
 upsertOg('og:type', siteMeta.ogType);
 upsertOg('og:locale', siteMeta.ogLocale);

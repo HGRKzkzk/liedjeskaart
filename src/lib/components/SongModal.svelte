@@ -283,6 +283,7 @@
 
   /* Hoofdmodal: vaste hoogte + flex + sticky footer */
   .song-modal {
+
     position: fixed;
     top: 50%;
     left: 50%;
@@ -325,7 +326,7 @@
   .modal-footer {
     padding: 0.75rem 1.25rem 1rem;
     background: var(--color-bg);
-    border-top: 1px solid var(--color-border-subtle);
+    /* border-top: 1px solid var(--color-border-subtle); */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -418,8 +419,8 @@
   /* Sluitknop */
   .close {
     position: absolute;
-    top: -4px;
-    right: 12px;
+    top: 0px;
+    right: 16px;
     font-size: 1.6rem;
     background: none;
     border: none;

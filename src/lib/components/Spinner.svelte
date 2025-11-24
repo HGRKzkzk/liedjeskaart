@@ -13,21 +13,28 @@
   inset: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.6rem;
   align-items: center;
   justify-content: center;
-  color: #333;
+
+  /* THEME-AWARE: gebruikt jouw projectvariabelen */
+  color: var(--color-text);
+  background: var(--color-bg-muted);
+
   font-size: 1rem;
-  background: #f9fafb;
   z-index: 40;
 }
 
+/* spinner cirkel */
 .spinner {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 3px solid rgba(0, 0, 0, 0.1);
-  border-top-color: #666;
+
+  /* THEME-AWARE borderkleuren */
+  border: 3px solid var(--color-border-subtle);
+  border-top-color: var(--color-text-muted);
+
   animation: spin 0.8s linear infinite;
 }
 

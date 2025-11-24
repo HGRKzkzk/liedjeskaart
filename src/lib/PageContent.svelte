@@ -102,7 +102,7 @@
       console.error('Fout bij laden markers:', err);
     } finally {
       loading = false;
-      console.log('markers loaded:', markers.length, markers[0]);
+      
     }
 
     // Keyboard navigatie

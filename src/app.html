@@ -1,45 +1,108 @@
 <!doctype html>
 <html lang="nl">
-
 <head>
-    <meta name="app-version" content="v2025-11-23-02">
+  <meta name="app-version" content="v2025-11-23-02">
 
-  <!-- ✔️ Dynamisch bijgewerkt via scripts/updateAppHtml.js -->
+  <!-- Schema.org JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://woutervanitterzon.nl/liedjeskaart/#website",
+        "url": "https://woutervanitterzon.nl/liedjeskaart",
+        "name": "Liedjeskaart van Nederland",
+        "alternateName": "Liedjeskaart",
+        "publisher": {
+          "@id": "https://woutervanitterzon.nl/liedjeskaart/#person"
+        }
+      },
+      {
+        "@type": "Person",
+        "@id": "https://woutervanitterzon.nl/liedjeskaart/#person",
+        "name": "Wouter van Itterzon",
+        "url": "https://woutervanitterzon.nl/",
+        "sameAs": [
+          "https://woutervanitterzon.nl"
+        ]
+      },
+      {
+        "@type": "CollectionPage",
+        "@id": "https://woutervanitterzon.nl/liedjeskaart/#collection",
+        "url": "https://woutervanitterzon.nl/liedjeskaart",
+        "name": "Liedjeskaart van Nederland",
+        "description": "Interactieve kaart met 208 liedjes over Nederlandse steden en dorpen. Ontdek muziek over jouw favoriete plaats.",
+        "image": "https://woutervanitterzon.nl/liedjeskaart/img/liedjeskaart.jpg",
+        "isPartOf": {
+          "@id": "https://woutervanitterzon.nl/liedjeskaart/#website"
+        },
+        "creator": {
+          "@id": "https://woutervanitterzon.nl/liedjeskaart/#person"
+        }
+      },
+      {
+        "@type": "Dataset",
+        "@id": "https://woutervanitterzon.nl/liedjeskaart/#dataset",
+        "name": "Liedjes over Nederlandse plaatsen – dataset",
+        "description": "Dataset met 208 liedjes gekoppeld aan steden en dorpen in Nederland. Inclusief artiesten en bronnen.",
+        "creator": {
+          "@id": "https://woutervanitterzon.nl/liedjeskaart/#person"
+        },
+        "keywords": [
+          "muziek",
+          "liedjeskaart",
+          "Nederland",
+          "steden",
+          "dorpen",
+          "muziekkaart",
+          "artiesten",
+          "kleinkunst"
+        ],
+        "license": "https://creativecommons.org/licenses/by-nc/4.0/",
+        "url": "https://woutervanitterzon.nl/liedjeskaart",
+        "thumbnailUrl": "https://woutervanitterzon.nl/liedjeskaart/img/liedjeskaart.jpg"
+      }
+    ]
+  }
+  </script>
+
+  <!-- Dynamisch via updateAppHtml.js -->
   <title>Liedjeskaart van Nederland</title>
+
   <meta name="twitter:image:alt" content="Liedjeskaart van Nederland" />
   <meta name="twitter:image" content="https://woutervanitterzon.nl/liedjeskaart/img/liedjeskaart.jpg">
-  <meta name="twitter:description" content="Ontdek de  208 mooiste, leukste en grappigste liedjes over Nederland op een interactieve kaart.">
-  <meta name="twitter:title" content="Liedjeskaart van Nederland">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Liedjeskaart van Nederland">
+
   <meta property="og:locale" content="nl_NL">
   <meta property="og:site_name" content="Liedjeskaart" />
-  <meta property="og:image:alt" content="" />
+  <meta property="og:image:alt" content="Liedjeskaart van Nederland">
 
-  <meta name="description" content="Een interactief overzicht van de 208 mooiste, ontroerendste en grappigste liedjes over plaatsen in Nederland.">
-  <meta name="keywords" content="muziek, Nederland, liedjes, plaatsen, kaart, artiesten, kleinkunst, cabaret, theater, smartlappen, archief, popmuziek">
-  <meta name="author" content="Wouter van Itterzon">
-  <meta name="robots" content="index, follow">
-
-  <meta property="og:title" content="Liedjeskaart van Nederland">
-  <meta property="og:description" content="Ontdek de 208 mooiste, leukste en grappigste liedjes over Nederland op een interactieve kaart.">
-  <meta property="og:type" content="website">
-  <meta property="og:image" content="https://woutervanitterzon.nl/liedjeskaart/img/liedjeskaart.jpg">
-  <meta property="og:url" content="https://woutervanitterzon.nl/liedjeskaart">
-
-  <link rel="icon" type="image/png" href="%sveltekit.assets%/favicon.png" />
-
-  <link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- Fonts performance -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  %sveltekit.head%
-</head>
+  <link rel="icon" type="image/png" href="%sveltekit.assets%/favicon.png" />
 
+  %sveltekit.head%
+  <meta name="description" content="Interactieve kaart met 208 liedjes over Nederlandse steden en dorpen. Ontdek muziek over jouw woonplaats, streek of favoriete plek in Nederland.">
+  <meta name="keywords" content="muziekkaart, liedjeskaart, liedjes over steden, liedjes over dorpen,liedjes over Nederland, muziekgeschiedenis Nederland, kleinkunst kaart,plaatsenkaart muziek, Nederlandse artiesten muziek, popmuziek Nederland">
+  <meta name="author" content="Wouter van Itterzon">
+  <meta name="robots" content="index, follow">
+  <meta property="og:title" content="Liedjeskaart van Nederland">
+  <meta property="og:description" content="Ontdek 208 liedjes over Nederlandse steden en dorpen op een interactieve kaart. Van kleinkunst tot hiphop: vind muziek over jouw eigen plaats.">
+  <meta property="og:image" content="https://woutervanitterzon.nl/liedjeskaart/img/liedjeskaart.jpg">
+  <meta property="og:url" content="https://woutervanitterzon.nl/liedjeskaart">
+  <meta property="og:type" content="website">
+  <meta name="twitter:description" content="Ontdek 208 liedjes over Nederlandse steden en dorpen op een interactieve kaart. Van kleinkunst tot hiphop: vind muziek over jouw eigen plaats.">
+</head>
 <body data-sveltekit-preload-data="hover">
   <div style="display: contents">%sveltekit.body%</div>
 
-  <!-- ✔️ NIEUWE SERVICE WORKER REGISTRATIE -->
   <script>
     if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
       addEventListener('load', () => {
@@ -51,5 +114,4 @@
 
   <script async defer src="https://scripts.simpleanalyticscdn.com/latest.js"></script>
 </body>
-
 </html>

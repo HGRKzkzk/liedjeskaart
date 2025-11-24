@@ -19,30 +19,54 @@
   const openPlace = (marker: Marker) => dispatch('openPlace', marker);
   const toggleArtist = (artist: string) => dispatch('toggleArtist', artist);
 
-  const fuseOptions = {
-    keys: [{ name: 'place', weight: 0.6 }],
+  /* ----------------------------------------------------- */
+  /*  🔎 FUSE SEARCH: APART VOOR PLAATS EN ARTIEST         */
+  /* ----------------------------------------------------- */
+
+  const fusePlaceOptions: Fuse.IFuseOptions<Marker> = {
+    keys: [{ name: 'place', weight: 1 }],
     threshold: 0.22,
     includeScore: true,
     ignoreLocation: true,
-    minMatchCharLength: 3
+    minMatchCharLength: 2
   };
 
-  let fuse: Fuse<Marker> | null = null;
+  const fuseArtistOptions: Fuse.IFuseOptions<Marker> = {
+    keys: [{ name: 'artist', weight: 1 }],
+    threshold: 0.22,
+    includeScore: true,
+    ignoreLocation: true,
+    minMatchCharLength: 2
+  };
 
+  let fusePlace: Fuse<Marker> | null = null;
+  let fuseArtist: Fuse<Marker> | null = null;
+
+  // initialiseer beide engines wanneer markers veranderen
   $: if (markers?.length) {
-    fuse = new Fuse(markers, fuseOptions);
+    fusePlace = new Fuse(markers, fusePlaceOptions);
+    fuseArtist = new Fuse(markers, fuseArtistOptions);
   }
+
+  /* ----------------------------------------------------- */
+  /* 🧠 FILTERED MARKERS                                   */
+  /* ----------------------------------------------------- */
 
   $: filteredMarkers = (() => {
     if (!markers) return [];
 
-    if (!searchQuery.trim()) {
+    const query = searchQuery.trim();
+
+    // geen zoekterm → alfabetische sort per modus
+    if (!query) {
       return listMode === 'plaats'
         ? [...markers].sort((a, b) => (a.place || '').localeCompare(b.place || ''))
         : [...markers].sort((a, b) => (a.artist || '').localeCompare(b.artist || ''));
     }
 
-    const results = fuse?.search(searchQuery) ?? [];
+    // met zoekterm → juiste Fuse-engine gebruiken
+    const engine = listMode === 'plaats' ? fusePlace : fuseArtist;
+    const results = engine?.search(query) ?? [];
     const items = results.map((r) => r.item);
 
     return listMode === 'plaats'
@@ -50,10 +74,16 @@
       : items.filter((m) => m.artist);
   })();
 
+  /* ----------------------------------------------------- */
+  /* 📍 PLAATS-GROEPEN                                     */
+  /* ----------------------------------------------------- */
   $: groupedMarkers = (() => {
+    if (listMode !== 'plaats') return {};
+
     const sorted = [...filteredMarkers].sort((a, b) =>
       (a.place || '').localeCompare(b.place || '')
     );
+
     const groups: Record<string, Marker[]> = {};
     for (const m of sorted) {
       const key = (m.place?.[0] || '?').toUpperCase();
@@ -62,6 +92,9 @@
     return groups;
   })();
 
+  /* ----------------------------------------------------- */
+  /* 🎤 ARTIEST-GROEPEN                                    */
+  /* ----------------------------------------------------- */
   $: artistLetterGroups = (() => {
     if (listMode !== 'artiest') return {};
 
@@ -77,12 +110,17 @@
       (groups[letter] ??= []).push([artist, list]);
     }
 
+    // sorteer artiesten binnen elke letter
     for (const letter in groups) {
       groups[letter].sort(([a], [b]) => a.localeCompare(b));
     }
 
     return groups;
   })();
+
+  /* ----------------------------------------------------- */
+  /* 🌙 THEMA / RANDOM                                     */
+  /* ----------------------------------------------------- */
 
   let darkMode = false;
 
@@ -112,7 +150,6 @@
     in:slide={{ duration: 250, easing: cubicOut }}
     out:slide={{ duration: 200, easing: cubicOut }}
   >
-
     <!-- TOPBAR -->
     <div class="menu-topbar">
       <div class="theme-toggle">
@@ -127,17 +164,16 @@
     <!-- HEADER -->
     <div class="menu-header">
       <h2>Liedjeskaart van Nederland</h2>
-        <p class="song-count tagline">
-    Een interactief overzicht van de {markers.length} mooiste, ontroerendste en grappigste liedjes over Nederland.
-  </p>
-     <button class="contact-link" on:click={() => dispatch('openContact')}>
+      <p class="song-count tagline">
+        Een interactief overzicht van de {markers.length} mooiste, ontroerendste en grappigste liedjes over Nederland.
+      </p>
+      <button class="contact-link" on:click={() => dispatch('openContact')}>
         Meer informatie en contact
       </button>
     </div>
 
     <!-- STICKY SEARCH + TOGGLE -->
     <div class="menu-header-sticky">
-
       <div class="mode-toggle">
         <button class:selected={listMode === 'plaats'} on:click={() => setListMode('plaats')}>
           Plaatsen
@@ -155,12 +191,10 @@
           on:input={(e) => setSearch((e.currentTarget as HTMLInputElement).value)}
         />
       </div>
-
     </div>
 
     <!-- LIST -->
     <div class="menu-list" transition:fade>
-
       {#if filteredMarkers.length === 0}
         <p class="no-results">Geen resultaten gevonden</p>
 
@@ -179,7 +213,7 @@
         {/each}
 
       {:else}
-        {#each Object.entries(artistLetterGroups).sort(([a],[b]) => a.localeCompare(b)) as [letter, entries]}
+        {#each Object.entries(artistLetterGroups).sort(([a], [b]) => a.localeCompare(b)) as [letter, entries]}
           <div class="group">
             <h4>{letter}</h4>
             <ul>
@@ -214,7 +248,6 @@
           </div>
         {/each}
       {/if}
-
     </div>
 
     <!-- RANDOM BUTTON (STICKY) -->
@@ -265,12 +298,13 @@
   justify-content: space-between;
   align-items: center;
   background: var(--color-bg);
-  
-  padding: 0.1rem 0.8rem;
+  padding: .15rem .8rem;
   z-index: 25;
 }
 
 .menu-close {
+  position: absolute;
+  right:0px;
   font-size: 1.6rem;
   background: none;
   border: none;
@@ -337,7 +371,7 @@
   padding-bottom: 0.2rem;
   border-bottom: 1px solid var(--color-border-subtle);
   z-index: 22;
-  padding-right:1rem
+  padding-right:1rem;
 }
 
 .mode-toggle {
@@ -397,37 +431,49 @@
   text-transform: uppercase;
 }
 
-/* ✔️ HOVER FIX */
+/* Hover voor lijstitems */
 .menu-list li:hover {
   background: var(--color-primary-soft);
   color: var(--color-text);
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.artist-row:hover {
-  background: var(--color-primary-soft);
-  transition: background 0.15s ease;
-}
-
-/* Single item */
+/* Basis styling voor een enkel item (plaats of subitem) */
 .menu-list li {
   padding: 0.45rem 0.7rem;
   border-radius: var(--radius-sm);
 }
+
 .menu-list li.selected {
   background: var(--color-primary);
   color: white;
   font-weight: 600;
 }
 
-/* Artist row */
+/* Artiest-rijen: zelfde hoogte als plaats-items */
+.menu-list li:has(.artist-row) {
+  padding: 0; /* padding gaat naar .artist-row zelf */
+}
+
 .artist-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.45rem 0.7rem;
+  padding: 0.45rem 0.7rem; /* identiek aan .menu-list li */
   cursor: pointer;
   border-radius: var(--radius-sm);
+}
+
+/* Hover alleen op de zichtbare artiest-rij */
+.artist-row:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+  transition: background 0.15s ease;
+}
+
+/* Outer LI niet ook nog een hoverkleur geven */
+.menu-list li:has(.artist-row):hover {
+  background: none;
 }
 
 .artist-arrow {
@@ -435,22 +481,39 @@
   color: var(--color-text-muted);
 }
 
+/* Indent voor sublijstjes onder artiesten */
+.menu-list li ul {
+  margin-left: 1.2rem; /* subtiele indent */
+  border-left: 2px solid var(--color-border-subtle);
+  padding-left: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+.menu-list li ul li {
+  padding: 0.38rem 0.7rem; /* iets compacter */
+  border-radius: var(--radius-sm);
+}
+
+.menu-list li ul li:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+}
+
 /* ------------------------------ */
 /* RANDOM BUTTON (BOTTOM) */
 /* ------------------------------ */
 .random-btn-sticky {
   position: sticky;
-  bottom: 0px;
-  
+  bottom: 3px;
   text-align: center;
   padding: 0rem 0 0.1rem 0.5rem;
   z-index: 24;
 }
 
 .random-btn {
-  padding: 0.55rem 1.1rem;
+  padding: .155rem 1.1rem;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border-subtle);
+  border: 0px solid var(--color-border-subtle);
   background: var(--color-bg-muted);
   cursor: pointer;
 }

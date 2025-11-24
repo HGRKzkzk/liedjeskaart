@@ -36,6 +36,7 @@
   let mapInitialized = false;
   let zoomLocked = false;
 
+  /* ⭐ USER ZOOM / CENTER WORDEN HIER OPGESLAGEN */
   let lastZoomBeforeSelect: number | null = null;
   let lastViewCenterBeforeSelect: number[] | null = null;
 
@@ -61,8 +62,8 @@
     const zoomEl = mapElement?.querySelector('.custom-zoom') as HTMLElement;
     if (zoomEl) {
       zoomEl.style.position = 'absolute';
-      zoomEl.style.top = '10px';
-      zoomEl.style.right = '10px';
+      zoomEl.style.top = '14px';
+      zoomEl.style.right = '14px';
       zoomEl.style.left = 'auto';
       zoomEl.style.bottom = 'auto';
       zoomEl.style.zIndex = '1000';
@@ -144,18 +145,16 @@
     map.on('click', handleMapClick);
     view.on('change:resolution', updateClusterLabels);
 
-    /* THEMA SWITCH — ⭐ DIRECTE RERENDER FIX */
+    /* THEMA SWITCH */
     const observer = new MutationObserver(() => {
       const newTheme = document.documentElement.dataset.theme;
       if (newTheme && newTheme !== currentTheme) {
         currentTheme = newTheme;
 
-        // vervang tiles
         map.removeLayer(baseLayer);
         baseLayer = createBaseLayer(newTheme);
         map.getLayers().insertAt(0, baseLayer);
 
-        // ⭐ NIEUW: clusters meteen verversen
         if (clusterLayer) clusterLayer.changed();
 
         fixZoomPosition();
@@ -196,19 +195,24 @@
       const primary = root.getPropertyValue('--color-primary').trim() || '#e67e22';
       const primarySoft = root.getPropertyValue('--color-primary-soft').trim() || '#f3d7b0';
 
-      const textColor = root.getPropertyValue('--color-cluster-text').trim() || '#2f2f2f';
+      const isDark = document.documentElement.dataset.theme === 'dark';
+      const labelColor = isDark ? '#ffffff' : '#2b2b2b';
+      const labelStroke = isDark ? '#000000' : '#ffffff';
+      const markerFill = isDark ? '#ffbd70' : primary;
 
       if (size > 1) {
         return new Style({
           image: new CircleStyle({
             radius: 14 + Math.min(size, 30) / 3,
             fill: new Fill({ color: primarySoft }),
-            stroke: new Stroke({ color: '#fff', width: 2 })
+            stroke: new Stroke({ color: labelStroke, width: 2 })
           }),
           text: new Text({
             text: size.toString(),
-            fill: new Fill({ color: textColor }),
-            font: `600 12px ${fontBody}`
+            fill: new Fill({ color: labelColor }),
+            stroke: new Stroke({ color: labelStroke, width: 2 }),
+            font: `600 12px ${fontBody}`,
+            overflow: true
           })
         });
       }
@@ -223,16 +227,17 @@
               textAlign: 'center',
               textBaseline: 'top',
               font: `600 13px ${fontBody}`,
-              fill: new Fill({ color: textColor }),
-              stroke: new Stroke({ color: '#fff', width: 3 })
+              fill: new Fill({ color: labelColor }),
+              stroke: new Stroke({ color: labelStroke, width: 2 }),
+              overflow: true
             })
           : undefined;
 
       return new Style({
         image: new CircleStyle({
           radius: 8,
-          fill: new Fill({ color: primary }),
-          stroke: new Stroke({ color: '#fff', width: 2 })
+          fill: new Fill({ color: markerFill }),
+          stroke: new Stroke({ color: labelStroke, width: 2 })
         }),
         text: textStyle
       });
@@ -251,7 +256,7 @@
   }
 
   /* ------------------------------
-      CLICK HANDLING
+      CLICK HANDLING (⭐ FIX HIER!)
   ------------------------------ */
   function handleMapClick(evt) {
     if (zoomLocked) return;
@@ -271,6 +276,10 @@
         easing: easeOut
       });
     } else {
+      /* ⭐ BEWAAR USER VIEW OP DIT PERFECTE MOMENT */
+      lastZoomBeforeSelect = view.getZoom();
+      lastViewCenterBeforeSelect = view.getCenter();
+
       const marker = clustered[0].get('marker') as Marker;
       dispatch('select', marker);
     }
@@ -281,30 +290,28 @@
   ------------------------------ */
   $: if (map && markers) renderClusters();
 
+  /* ⭐ MODAL SLUIT → TERUG NAAR USER LEVEL */
   $: if (mapInitialized && view && resetSignal !== lastResetSignal) {
     const current = resetSignal;
     lastResetSignal = current;
 
     if (current > 0) {
-      const targetCenter = lastViewCenterBeforeSelect ?? fromLonLat([5.3, 52.2]);
-      const targetZoom = lastZoomBeforeSelect ?? DEFAULT_ZOOM;
+      const targetCenter =
+        lastViewCenterBeforeSelect ?? fromLonLat([5.3, 52.2]);
+      const targetZoom =
+        lastZoomBeforeSelect ?? DEFAULT_ZOOM;
 
-      animateWithLock(
-        { center: targetCenter, zoom: targetZoom, duration: 800, easing: easeOut },
-        () => {
-          lastZoomBeforeSelect = null;
-          lastViewCenterBeforeSelect = null;
-        }
-      );
+      animateWithLock({
+        center: targetCenter,
+        zoom: targetZoom,
+        duration: 800,
+        easing: easeOut
+      });
     }
   }
 
+  /* ⭐ MODAL OPEN → INZOOMEN */
   $: if (map && activeMarker && mapInitialized && !zoomLocked) {
-    if (lastZoomBeforeSelect === null || lastViewCenterBeforeSelect === null) {
-      lastZoomBeforeSelect = view.getZoom() ?? DEFAULT_ZOOM;
-      lastViewCenterBeforeSelect = view.getCenter() ?? fromLonLat([5.3, 52.2]);
-    }
-
     const coords = fromLonLat([activeMarker.lon, activeMarker.lat]);
     animateWithLock({
       center: coords,
@@ -314,6 +321,7 @@
     });
   }
 </script>
+
 
 <div bind:this={mapElement} id="map"></div>
 
@@ -327,39 +335,7 @@
     background: radial-gradient(circle at center, #ffffff 60%, #fdfbf7 100%);
   }
 
-  .ol-zoom.custom-zoom {
-    position: absolute !important;
-    top: 10px !important;
-    right: 10px !important;
-    left: auto !important;
-    bottom: auto !important;
-    z-index: 1000 !important;
-  }
 
-  .custom-zoom {
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .custom-zoom button {
-    background: rgba(255, 255, 255, 0.65);
-    color: #333;
-    border: none;
-    border-radius: 8px;
-    width: 40px;
-    height: 40px;
-    font-size: 22px;
-    cursor: pointer;
-    transition: background 0.2s ease, transform 0.15s ease;
-  }
-
-  .custom-zoom button:hover {
-    background: rgba(255, 255, 255, 0.9);
-    transform: scale(1.05);
-  }
 
   @media (max-width: 700px) {
     .custom-zoom button {
@@ -368,4 +344,86 @@
       font-size: 24px;
     }
   }
+/* --------------------------------------------- */
+/*  RETRO ATTRIBUTION — GLOBAL VOOR OPENLAYERS   */
+/* --------------------------------------------- */
+
+/* container van de attribution */
+:global(.ol-attribution.custom-attribution) {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+ padding: 1px 1px;
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.25;
+  font-family: var(--font-body);
+  background: rgba(255, 255, 255, 0.25);
+ color: #444;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+
+  z-index: 998;
+}
+
+/* inhoud (ul) netjes maken */
+:global(.ol-attribution.custom-attribution ul) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  gap: 0.4rem;
+}
+
+/* dark mode variant */
+:global([data-theme='dark'] .ol-attribution.custom-attribution) {
+  background: rgba(0, 0, 0, 0.45);
+  color: #ddd;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+/* links binnen de attribution */
+:global(.ol-attribution.custom-attribution a) {
+  color: inherit;
+  text-decoration: none;
+  opacity: 0.85;
+}
+
+:global(.ol-attribution.custom-attribution a:hover) {
+  opacity: 1;
+  border-bottom-style: solid;
+}
+
+:global(.ol-zoom.custom-zoom) {
+  position: absolute !important;
+  top: 14px !important;   /* zelfde hoogte als menuknop */
+  right: 14px !important; /* optioneel: matcht menuknop spacing */
+  left: auto !important;
+  bottom: auto !important;
+  z-index: 1000 !important;
+}
+
+
+:global(.custom-zoom button) {
+  background: rgba(255, 255, 255, 0.742);
+}
+
+:global(.custom-zoom button:hover) {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* DARK MODE – zachte transparante UI zoals de menuknop */
+:global([data-theme='dark'] .custom-zoom button) {
+  background: rgba(0, 0, 0, 0.45);       /* zelfde base als menuknop */
+  color: var(--color-text);              /* licht, leesbaar */
+  border: 1px solid rgba(255, 255, 255, 0.15);  /* subtiele lichte rand */
+}
+
+/* Hover – koperaccent zoals de menuknop */
+:global([data-theme='dark'] .custom-zoom button:hover) {
+  background: rgba(0, 0, 0, 0.65);
+  color: var(--color-primary);
+  border-color: var(--color-primary-soft);
+}
+
 </style>

@@ -166,7 +166,7 @@
   .modal-header .close {
     position: absolute;
     right: 14px;
-    top: 5px;
+    top: 0px;
   }
 
   /* Scroll area */
